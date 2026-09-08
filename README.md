@@ -92,6 +92,9 @@ A full narrative of this process is kept in [`DOCUMENTATION/strategy_creation_ti
 - [Agentic workflow research](DOCUMENTATION/agentic_workflow_research.md) — the evidence base behind ADR-004, including verification of every cited claim against primary sources
 - [Strategy creation timeline](DOCUMENTATION/strategy_creation_timeline.md) — the full narrative of how each point was researched, decided, and validated
 
+
 ---
 
 *This project is built and documented with [Claude Code](https://claude.com/claude-code).*
+=======
+
