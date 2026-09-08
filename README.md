@@ -92,10 +92,9 @@ A full narrative of this process is kept in [`DOCUMENTATION/strategy_creation_ti
 - [Agentic workflow research](DOCUMENTATION/agentic_workflow_research.md) — the evidence base behind ADR-004, including verification of every cited claim against primary sources
 - [Strategy creation timeline](DOCUMENTATION/strategy_creation_timeline.md) — the full narrative of how each point was researched, decided, and validated
 
-**Product planning (pre-code scaffold):**
-- [`draft/ARCHITECTURE.md`](draft/ARCHITECTURE.md) — stack, data model, and infra decisions for the app itself
-- [`draft/HANDOFF.md`](draft/HANDOFF.md) — implementation task list for the current multi-tenancy (Saga) build-out
 
 ---
 
 *This project is built and documented with [Claude Code](https://claude.com/claude-code).*
+=======
+
