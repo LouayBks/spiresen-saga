@@ -76,7 +76,7 @@ A full narrative of this process is kept in [`DOCUMENTATION/strategy_creation_ti
 - [ADR-001 — Codebase architecture](ADR/ADR-001-software_architecture.md)
 - [ADR-002 — Clean-code strategy](ADR/ADR-002-clean_code.md)
 - [ADR-003 — Testing strategy](ADR/ADR-003-testing-strategy.md)
-- [ADR-004 — Agentic workflow and multi-agent architecture](ADR/ADR-004-agentic_workflow.md)
+- [ADR-004 — Agentic workflow and multi-agent architecture](ADR/ADR-004-agentic-workflow.md)
 
 **Final rules** — the *what*, concrete and enforceable:
 - [Clean-code rules (33 rules, CC-1 to CC-33)](.CLAUDE/clean_coderules.md)
