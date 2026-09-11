@@ -46,8 +46,6 @@ Setting the methodology aside, **Saga** is a real product: a place to store and 
 | IaC | Terraform, modularized (`dns`, `static-site`, `api`) |
 | CI/CD | GitHub Actions, via the Claude Code GitHub Action |
 
-Full reasoning behind the stack and data model lives in [`draft/ARCHITECTURE.md`](draft/ARCHITECTURE.md).
-
 ## 4. How the strategy is created
 
 The planning process runs as a sequence of **points**, each one producing an ADR and, once accepted, a concrete rules document. Every point follows the same shape:
@@ -62,13 +60,13 @@ Each point also explicitly carries forward anything it couldn't fully resolve, s
 | Point | Decision | Status |
 |---|---|---|
 | 1 — Codebase architecture | Vertical-slice / feature-based organization, scored against 10 criteria vs. layered, DDD, and hexagonal alternatives | Accepted — [ADR-001](ADR/ADR-001-software_architecture.md) |
-| 2 — Clean-code rules | Hybrid enforcement (mechanical core + a short, curated prose residual), resolved into 33 rules | Accepted — [ADR-002](ADR/ADR-002-clean_code.md) / [rules](.CLAUDE/clean_coderules.md) |
-| 3 — Testing strategy | Testing Trophy shape + 6 agentic verification policies, resolved into 19 rules | Accepted — [ADR-003](ADR/ADR-003-testing-strategy.md) / [strategy](.CLAUDE/testing_strategy.md) |
-| 4 — Agent/workflow definition | Single-agent-by-default topology (git-worktree parallelism for independent work, subagent delegation reserved for writer/reviewer roles); concrete dev, deployment, and review workflows; plan template, documentation strategy, trivial-change bypass, and a two-tier detection mechanism gating all of it — resolved into 20 rules | Accepted — [ADR-004](ADR/ADR-004-agentic_workflow.md) / [processes](.CLAUDE/agentic_workflow_processes.md) |
-
-A fifth document, [`claude-code-setup.md`](.CLAUDE/claude_code_setup.md), isn't an ADR — it's where point 4's decisions become literal tool configuration: which plugins and MCP servers to install, how the GitHub App/Action is scoped, how AWS credentials and IAM roles are provisioned for Claude (including the two-role split — a scoped deploy role vs. a read-only log-scan role — that Part 3/8 of ADR-004 calls for), and the `.claude/settings.json`/hooks wiring itself. It's the step between "the workflow is decided" and "Claude Code can actually be pointed at this repo."
-
-A full narrative of this process is kept in [`DOCUMENTATION/strategy_creation_timeline.md`](DOCUMENTATION/strategy_creation_timeline.md), including the two places the process caught its own gaps: after Point 2 was accepted, an audit for silently-dropped research findings surfaced three missing rules, added before the rules document was finalized; and Point 4's ADR went through a review-and-revise cycle — trimmed for duplication, and extended to add an explicit detection mechanism and a log-based (not just synthetic-smoke-test) deployment health check — before acceptance. Neither correction was silent; both are part of the record. The process is meant to be checked, not just followed.
+| 2 — Clean-code rules | Hybrid enforcement (mechanical core + a short, curated prose residual), resolved into 33 rules | Accepted — [ADR-002](ADR/ADR-002-clean_code.md) / [rules](DOC/architecture/clean_code_rules.md) |
+| 3 — Testing strategy | Testing Trophy shape + 6 agentic verification policies, resolved into 19 rules | Accepted — [ADR-003](ADR/ADR-003-testing-strategy.md) / [strategy](DOC/architecture/testing_strategy.md) |
+| 4 — Agent/workflow definition | Single-agent-by-default topology (git-worktree parallelism for independent work, subagent delegation reserved for writer/reviewer roles); concrete dev, deployment, and review workflows; plan template, documentation strategy, trivial-change bypass, and a two-tier detection mechanism gating all of it — resolved into 20 rules | Accepted — [ADR-004](ADR/ADR-004-agentic-workflow.md) / [processes](DOC/architecture/agentic_workflow_processes.md) |
+ 
+A fifth document, [`claude-code-setup.md`](DOC/setup/claude_code_setup.md), isn't an ADR — it's where point 4's decisions become literal tool configuration: which plugins and MCP servers to install, how the GitHub App/Action is scoped, how AWS credentials and IAM roles are provisioned for Claude (including the two-role split — a scoped deploy role vs. a read-only log-scan role — that Part 3/8 of ADR-004 calls for), and the `.claude/settings.json`/hooks wiring itself. It's the step between "the workflow is decided" and "Claude Code can actually be pointed at this repo."
+ 
+A full narrative of this process is kept in [`strategy_creation_timeline.md`](DOC/architecture/strategy_creation_timeline.md), including the two places the process caught its own gaps: after Point 2 was accepted, an audit for silently-dropped research findings surfaced three missing rules, added before the rules document was finalized; and Point 4's ADR went through a review-and-revise cycle — trimmed for duplication, and extended to add an explicit detection mechanism and a log-based (not just synthetic-smoke-test) deployment health check — before acceptance. Neither correction was silent; both are part of the record. The process is meant to be checked, not just followed.
 
 ## 5. Documentation index
 
@@ -79,22 +77,29 @@ A full narrative of this process is kept in [`DOCUMENTATION/strategy_creation_ti
 - [ADR-004 — Agentic workflow and multi-agent architecture](ADR/ADR-004-agentic-workflow.md)
 
 **Final rules** — the *what*, concrete and enforceable:
-- [Clean-code rules (33 rules, CC-1 to CC-33)](.CLAUDE/clean_coderules.md)
-- [Testing strategy (19 rules, TS-1 to TS-19)](.CLAUDE/testing_strategy.md)
-- [Agentic workflow processes (20 rules, AW-1 to AW-20)](.CLAUDE/agentic_workflow_processes.md)
+- [Clean-code rules (33 rules, CC-1 to CC-33)](DOC/architecture/clean_code_rules.md)
+- [Testing strategy (19 rules, TS-1 to TS-19)](DOC/architecture/testing_strategy.md)
+- [Agentic workflow processes (20 rules, AW-1 to AW-20)](DOC/architecture/agentic_workflow_processes.md)
 
 **Setup reference** — the *how*, concrete tool and credential configuration:
-- [Claude Code setup](.CLAUDE/claude_code_setup.md) — plugins/MCP servers, GitHub App and Action scope, AWS credential and IAM setup, `.claude/settings.json` and hooks
+- [Claude Code setup](DOC/setup/claude_code_setup.md) — plugins/MCP servers, GitHub App and Action scope, AWS credential and IAM setup, `.claude/settings.json` and hooks
 
 **Supporting research and process docs:**
-- [Clean-code research](DOCUMENTATION/clean_code_research.md) — the evidence base behind ADR-002
-- [Testing strategy research](DOCUMENTATION/testing_strategy_research.md) — the evidence base behind ADR-003
-- [Agentic workflow research](DOCUMENTATION/agentic_workflow_research.md) — the evidence base behind ADR-004, including verification of every cited claim against primary sources
-- [Strategy creation timeline](DOCUMENTATION/strategy_creation_timeline.md) — the full narrative of how each point was researched, decided, and validated
+- [Clean-code research](DOC/research/clean_code_research.md) — the evidence base behind ADR-002
+- [Testing strategy research](DOC/research/testing_strategy_research.md) — the evidence base behind ADR-003
+- [Agentic workflow research](DOC/research/agentic_workflow_research.md) — the evidence base behind ADR-004, including verification of every cited claim against primary sources
+- [Strategy creation timeline](DOC/architecture/strategy_creation_timeline.md) — the full narrative of how each point was researched, decided, and validated
 
 
 ---
 
-*This project is built and documented with [Claude Code](https://claude.com/claude-code).*
-=======
+_This project is primarily built and documented with [Claude Code](https://claude.com/claude-code)._
+
+_Information inside is challenged and reviewed, nevertheless ✨the risk of AI slop is never fully mitigated✨._
+_Feel free to flag any potential points of contention._
+
+_✨Feel free to contact me if you need more information about the project, my methodology of *using AI responsibly*, or any question that comes to mind (about the poject of course)._
+
+_✨✨Star the repo if it interests you, ~~so that I would feel motivated to continue~~ so that I would know if the topic is of interest or no, and what to priotize_
+
 
