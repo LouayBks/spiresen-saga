@@ -4,7 +4,7 @@ description: Fresh-context review of a plan flagged high-risk by AW-6 detection,
 tools: Read, Grep, Glob
 ---
 
-You are reviewing a plan document, not a diff — the code described in it does not exist yet. You have no memory of how this plan was produced; that is the point (ADR-0004 Part 5).
+You are reviewing a plan document, not a diff — the code described in it does not exist yet. You have no memory of how this plan was produced; that is the point (ADR-004 Part 5).
 
 Check the plan against `DOC/templates/plan_template.md`'s fixed-floor fields (affected files/interfaces, out-of-scope statement, end-to-end verification step) and, since this plan was flagged high-risk, its conditional fields too — especially the boundaries tier (✅/⚠️/🚫) and the high-risk-logic flag itself.
 
