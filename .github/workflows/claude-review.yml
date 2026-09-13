@@ -1,0 +1,123 @@
+# AW-11/AW-12/AW-13 (ADR-004 Part 4; DOC/architecture/agentic_workflow_processes.md section D).
+#
+# Status: created, NOT enabled. This workflow exists and is correct, but it is
+# deliberately NOT added as a required status check in branch protection on
+# `main` (confirmed via `gh api repos/:owner/:repo/branches/main/protection`
+# returning 404 — no protection rule exists to add it to). Do not add it to
+# branch protection as part of routine maintenance; that decision belongs to
+# a future, deliberate step per the plan for issue #6, unit 3.
+#
+# AW-12 note (ADR-004 named open item, unresolved by design): whether the
+# managed Code Review service is available on this account's plan tier is
+# NOT confirmed. AW-12's literal wording requires this be "checked once and
+# cached, not re-verified per PR" — so the choice is NOT delegated to the
+# Claude agent's runtime judgment on every run (that would be a per-PR
+# re-verification). Instead it's a repository Actions variable,
+# `vars.CLAUDE_REVIEW_TIER`, set once by hand when the plan tier is actually
+# confirmed (Settings > Actions > Variables > New repository variable,
+# value `managed` or `local`). Left unset, it defaults to `local` — i.e.
+# until someone deliberately flips it, every PR gets the local /code-review
+# fallback, cached until the variable is next changed by a human, not
+# re-checked by the agent per run.
+name: Claude Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+# One review run per PR head ref at a time; a new push supersedes an
+# in-flight review rather than piling up redundant runs.
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+jobs:
+  review:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Fork PRs don't get repo secrets on the `pull_request` trigger (by
+      # GitHub design, and deliberately not switched to `pull_request_target`
+      # to avoid running untrusted code with secret access). Detected here so
+      # the final check-run output below can say honestly that no review ran,
+      # instead of implying one did.
+      - name: Detect fork PR (no secret access)
+        id: fork_check
+        run: |
+          if [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
+            echo "is_fork=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_fork=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # AW-13: this step's own pass/fail must never surface as a blocking
+      # gate, so failures here are absorbed (continue-on-error) and the
+      # check run's actual conclusion is fixed to `neutral` in the step below
+      # regardless of what happens here.
+      - name: Run Claude Code review (managed service, fallback to local /code-review)
+        id: claude_review
+        if: steps.fork_check.outputs.is_fork == 'false'
+        continue-on-error: true
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            Review this pull request's diff for correctness bugs and
+            reuse/simplification/efficiency issues, per this repo's
+            code-review conventions (see /code-review skill and
+            DOC/architecture/clean_code_rules.md).
+
+            The repository variable CLAUDE_REVIEW_TIER (set once, by hand,
+            when plan-tier availability is confirmed — not re-verified by
+            you per run) is currently: "${{ vars.CLAUDE_REVIEW_TIER || 'local (unconfirmed, default)' }}".
+            If it is "managed", use the managed Code Review service
+            (multi-agent, verification pass). Otherwise, run the local
+            /code-review skill yourself as a fresh-context background
+            subagent. Do not attempt to detect plan-tier availability
+            yourself — that decision is cached in the variable above, not
+            something to re-check per PR.
+
+            Post findings as inline PR review comments. Do not approve or
+            request changes on the PR itself — this review is advisory only
+            (AW-13); a human retains merge authority.
+
+      # AW-13: the check-run conclusion is hardcoded to `neutral` regardless
+      # of findings, of whether the review step above succeeded, failed, or
+      # was skipped, or of whether it ran at all (fork PR). `neutral` never
+      # blocks a merge, unlike `failure`, even if this check is ever made
+      # required in the future.
+      - name: Set check run to neutral (AW-13 — never blocks merge)
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const isFork = '${{ steps.fork_check.outputs.is_fork }}' === 'true';
+            const summary = isFork
+              ? 'Skipped: this PR is from a fork, so the review step has no ' +
+                'secret access and did not run. No review findings exist for ' +
+                'this PR — this is not a pass/fail signal either way.'
+              : 'Findings, if any, are posted as inline PR comments. ' +
+                'This check is always neutral (AW-13) and is not a required ' +
+                'status check (AW-11/AW-12 review unit is "created, not enabled").';
+            await github.rest.checks.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              name: 'claude-review',
+              head_sha: context.payload.pull_request.head.sha,
+              status: 'completed',
+              conclusion: 'neutral',
+              output: {
+                title: 'Claude Code review (advisory)',
+                summary
+              }
+            });

@@ -22,9 +22,11 @@ Per-ticket token usage, captured via `npx ccusage@latest session` (see [README.m
 | `8d75fe0d-8293-450d-accd-97bb77a13caa` | Claude | sonnet-5 | 50 | 11,667 | 85,585 | 1,621,605 | 1,718,907 | $0.78 |
 | `dba1911a-f5ac-4bef-9c9c-3d0fdd6bbde3` | Claude | sonnet-5 | 40 | 10,208 | 80,972 | 1,280,647 | 1,371,867 | $0.68 |
 | `b445fc5c-236e-4b33-ab49-63a6ab71d6d0` | Claude | sonnet-5 | 274 | 89,954 | 610,468 | 19,810,149 | 20,510,845 | $7.25 |
-| **Aggregate** | | | **528** | **155,533** | **977,577** | **27,371,017** | **28,504,655** | **$10.81** |
+| `90559270-602f-48df-a2d8-8061a3c609a7` | Claude | sonnet-5 | 26 | 12,150 | 62,748 | 976,253 | 1,051,177 | $0.57 |
+| `3cfc073c-5d96-47c4-857e-58eede5f5ce7` | Claude | sonnet-5 | 42 | 13,084 | 45,036 | 1,418,689 | 1,476,851 | $0.59 |
+| **Aggregate** | | | **596** | **180,767** | **1,085,361** | **29,765,959** | **31,032,683** | **$11.97** |
 
-*Snapshot taken mid-session on 2026-09-13 (DOC/usage setup, this log's population; `3bbc16d6` row for the architecture-vs-code-vs-external-docs review session; `bd27a6bd` row added for the commit-vs-ADR/external-docs infraction review; `509c41d8` row added for the DOC/frontend mockup severity-tiered infraction review; `8d75fe0d` row added for the coding-unit-setup-files-vs-ADR/external-docs severity-tiered infraction review; `dba1911a` row added for the added-files-vs-ADR/external-docs infraction review + this log update; `b445fc5c` row is the primary coding-unit build/fix session itself — plan drafting, the four review-and-fix rounds on the coding unit, and the unit-2 testing-doc addition) — re-run `ccusage` and update rows at the next checkpoint rather than adding duplicates.*
+*Snapshot taken mid-session on 2026-09-13 (DOC/usage setup, this log's population; `3bbc16d6` row for the architecture-vs-code-vs-external-docs review session; `bd27a6bd` row added for the commit-vs-ADR/external-docs infraction review; `509c41d8` row added for the DOC/frontend mockup severity-tiered infraction review; `8d75fe0d` row added for the coding-unit-setup-files-vs-ADR/external-docs severity-tiered infraction review; `dba1911a` row added for the added-files-vs-ADR/external-docs infraction review + this log update; `b445fc5c` row is the primary coding-unit build/fix session itself — plan drafting, the four review-and-fix rounds on the coding unit, and the unit-2 testing-doc addition; `90559270` row added for the added-files (workflow YAML + DOC/frontend) severity-tiered infraction review against ADR/architecture docs and external claude-code-action docs + this log update; `3cfc073c` row is unit 3 (review workflow) build + fix-round session) — re-run `ccusage` and update rows at the next checkpoint rather than adding duplicates.*
 
 ## Ticket # — \<title\>
 

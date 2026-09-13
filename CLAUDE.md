@@ -19,6 +19,8 @@ Full mechanics are in `agentic_workflow_processes.md` — don't restate them her
 - **AW-6/TS-17** — two-tier high-risk detection (`.claude/hooks/detect-high-risk.py` against `.claude/risk-paths.json`, falling back to the `risk-classifier` subagent). Never the primary agent's own unassisted call.
 - **AW-4** — high-risk plans get a fresh-context review via the `plan-reviewer` subagent before implementation starts.
 - **TS-16/18/19** — no rigid test-first ordering; scoped test execution in the inner loop; flag (don't silently retry) a test that flips across 2 runs.
+- **TS-1/7/12/15/19's Hook halves** (pytest/Vitest CI gates, order-randomization, retry bounds) — blocked, not skipped: no real test runner exists yet beyond `draft/`. Wire these the moment app code lands in a real slice.
+- **TS-13** — no numeric coverage gate in CI, deliberately and permanently (not blocked-pending-tooling like the row above): coverage stays diagnostic-only unless a future decision explicitly revisits this.
 
 ## Code navigation
 
