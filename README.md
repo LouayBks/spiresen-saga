@@ -80,6 +80,10 @@ A full narrative of this process is kept in [`strategy_creation_timeline.md`](DO
 - [Clean-code rules (33 rules, CC-1 to CC-33)](DOC/architecture/clean_code_rules.md)
 - [Testing strategy (19 rules, TS-1 to TS-19)](DOC/architecture/testing_strategy.md)
 - [Agentic workflow processes (20 rules, AW-1 to AW-20)](DOC/architecture/agentic_workflow_processes.md)
+- [Branching strategy (6 rules, AW-21 to AW-26)](DOC/architecture/branching_strategy.md) — branch taxonomy and actor permissions (human vs. Claude); codebase-protection policy, not a FinOps decision, so it sits outside the research→ADR pipeline above
+
+**Guides** — the *how-to*, for picking up a ticket:
+- [Using the coding agents](DOC/guides/using_coding_agents.md) — step-by-step dev walkthrough from branch to PR
 
 **Setup reference** — the *how*, concrete tool and credential configuration:
 - [Claude Code setup](DOC/setup/claude_code_setup.md) — plugins/MCP servers, GitHub App and Action scope, AWS credential and IAM setup, `.claude/settings.json` and hooks
@@ -89,6 +93,7 @@ A full narrative of this process is kept in [`strategy_creation_timeline.md`](DO
 - [Testing strategy research](DOC/research/testing_strategy_research.md) — the evidence base behind ADR-003
 - [Agentic workflow research](DOC/research/agentic_workflow_research.md) — the evidence base behind ADR-004, including verification of every cited claim against primary sources
 - [Strategy creation timeline](DOC/architecture/strategy_creation_timeline.md) — the full narrative of how each point was researched, decided, and validated
+- [Agentic units overview](DOC/ai_assistance/units_overview.md) — which of the five agentic units fire on their own vs. need invoking
 
 
 ---
