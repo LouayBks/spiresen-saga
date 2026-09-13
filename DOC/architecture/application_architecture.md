@@ -80,6 +80,22 @@ Everything from `PK: BOX#{boxId}` downward is unchanged — a Saga simply replac
 
 Concrete implementation task list, open questions, and which files to touch are in `HANDOFF.md` — that file is the one to hand to a coding agent; this section is background for *why*, not a step-by-step.
 
+## Boxes product surface: content types, links, and the group-nesting exception
+
+Reconciles `DOC/frontend/boxes-plan.md` (the box-canvas product/UI spec) against the schema above — written here because that's a real data-model decision, not a UI detail, and this file is the source of truth for schema (per `CLAUDE.md`'s pointer). `boxes-plan.md` should be read as the product spec; this section is the accompanying schema amendment.
+
+**`Box` gets a `kind` attribute:** `note` (title + short body + theme dot + date), `media` (thumbnail-led, for an article/video), or `group` (contains other boxes; opens as a window rather than expanding in place). `kind` is orthogonal to the S/M/L size tier already on `Box`.
+
+**`Link` is a new entity, sibling to `Box` under a Saga's partition:**
+
+```
+PK: SAGA#{sagaId}   SK: LINK#{boxA}#{boxB}   -> box-to-box link. attrs: link type (theme | timeline), optional label
+```
+
+**Group-box children are a deliberate, bounded exception to the recursive box-tree schema, not a competing general schema.** The schema above (`PK: BOX#{boxId} / SK: BOX#{childBoxId}`) is unchanged and still applies to boxes generally. For a `group`-kind box specifically, children are stored as lightweight inline summary records (title, theme tag) on the group box's own item rather than as independent `BOX#{childBoxId}` items — they have no position, no links, and no id of their own, because a group's canvas layout is computed once on first open and persisted (see `boxes-plan.md` §9), not derived from independently-addressable child items. **Promoting a child out of the group is the explicit escape hatch back into the general schema**: promotion mints the child a real box id and writes it as an ordinary top-level `PK: SAGA#{sagaId} / SK: BOX#{boxId}` item — at that point it's a fully general box again, indistinguishable from one that was never grouped.
+
+**Authorization fields carry forward unchanged for `Box` and `Link`:** both are minted with the `{sagaId}.{shortId}` box-id namespacing convention decided above (a `Link`'s own id embeds its sagaId the same way; the two box ids it references are themselves already namespaced). Inline group-child summary records need no id or separate authorization path — they aren't independently writable; a write to them is a write to the parent group box, authorized the same way. Only a *promoted* child needs its own namespaced id, at the moment it's promoted.
+
 ## Terraform module layout
 
 ```

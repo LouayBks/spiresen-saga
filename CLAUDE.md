@@ -8,6 +8,7 @@ Multi-tenant box-canvas app (Angular + FastAPI/Mangum/Lambda + DynamoDB). This f
 - `DOC/architecture/application_architecture.md` — stack, schema, current open items.
 - `DOC/architecture/clean_code_rules.md` (CC-1..33), `testing_strategy.md` (TS-1..19), `agentic_workflow_processes.md` (AW-1..20) — the concrete, rule-tagged specs.
 - `DOC/templates/plan_template.md` — the plan template referenced below.
+- `DOC/frontend/` — product/UI specs (e.g. `boxes-plan.md`) for the box-canvas surface. These describe *what to build*; any new data-model entity or field they introduce must be reconciled back into `application_architecture.md` (the schema source of truth), not left to live only here.
 
 (A consolidated `DOC/architecture/agentic_fleet.md` — how the artifacts below fit together and how to invoke them — is planned but not yet written; this section will point to it once it exists, not before.)
 
