@@ -2,6 +2,20 @@
   "enabledPlugins": {
     "github@claude-plugins-official": true
   },
+  "permissions": {
+    "deny": [
+      "Bash(git branch -D:*)",
+      "Bash(git branch --delete:*)",
+      "Bash(git push * --delete*)",
+      "Bash(git push * --force*)",
+      "Bash(git push * -f*)",
+      "Bash(git push origin main:*)",
+      "Bash(git push origin int:*)",
+      "Bash(gh pr merge:*)",
+      "Bash(terraform apply:*)",
+      "Bash(terraform destroy:*)"
+    ]
+  },
   "hooks": {
     "PreToolUse": [
       {
