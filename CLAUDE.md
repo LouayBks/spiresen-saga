@@ -13,21 +13,16 @@ Multi-tenant box-canvas app (Angular + FastAPI/Mangum/Lambda + DynamoDB). This f
 
 ## Dev workflow
 
-**Bypass check (AW-1):** skip Plan Mode only when a change touches one file, changes no logic/control-flow, and is describable in one sentence (typo, log line, rename). Anything multi-file, unfamiliar, or uncertain plans first, using `DOC/templates/plan_template.md`.
+Full mechanics are in `agentic_workflow_processes.md` — don't restate them here, just the pointers:
 
-**Parallel issues (AW-2/AW-3):** each ready issue gets its own git worktree + ordinary session — never a subagent or Agent Team for parallelization. Cross-session coordination happens only when two issues actually hit a shared boundary, flagged explicitly by whichever session finds it.
-
-**High-risk logic (AW-6, TS-17):** fractional-order calculation, auth/allowlist checks, and cross-slice authorization boundaries are high-risk. Detection is never the primary agent's own unassisted call — it's two-tier:
-1. Mechanical check against `.claude/risk-paths.json` (wired as a `PreToolUse` hook, `.claude/hooks/detect-high-risk.sh`).
-2. If ambiguous, the `risk-classifier` subagent (`.claude/agents/risk-classifier.md`) decides.
-
-A plan flagged high-risk gets a fresh-context review via the `plan-reviewer` subagent (`.claude/agents/plan-reviewer.md`) before implementation starts (AW-4). Code flagged high-risk gets a `/code-review` pass before commit, same detection mechanism (TS-17).
-
-**Testing (TS-16/18/19):** no mandatory test-first ordering — tests and implementation may land in either order, but a task isn't done until both exist and pass. Run only the touched slice's tests in the inner loop; full-suite runs are for CI. A test whose result flips across 2 consecutive runs must be flagged as flaky, never silently retried.
+- **AW-1** — Plan Mode bypass criterion. **AW-2/AW-3** — worktree-per-issue, cross-session coordination only at real shared boundaries.
+- **AW-6/TS-17** — two-tier high-risk detection (`.claude/hooks/detect-high-risk.py` against `.claude/risk-paths.json`, falling back to the `risk-classifier` subagent). Never the primary agent's own unassisted call.
+- **AW-4** — high-risk plans get a fresh-context review via the `plan-reviewer` subagent before implementation starts.
+- **TS-16/18/19** — no rigid test-first ordering; scoped test execution in the inner loop; flag (don't silently retry) a test that flips across 2 runs.
 
 ## Code navigation
 
-Prefer LSP-based lookups over grep for symbol navigation (AW-16) once the LSP plugin is installed for this stack (TypeScript/Python) — not yet done; see `agentic_workflow_processes.md` section E.
+AW-16: LSP over grep for symbol navigation, once the plugin is installed for this stack — not yet done (`agentic_workflow_processes.md` section E).
 
 ## Structure
 

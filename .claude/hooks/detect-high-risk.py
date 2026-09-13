@@ -15,6 +15,7 @@ import sys
 
 
 def main() -> int:
+    """Return 0 (no match / not parseable) or 2 (high-risk match, escalation needed)."""
     try:
         hook_input = json.load(sys.stdin)
     except json.JSONDecodeError:

@@ -1,6 +1,6 @@
 ---
 name: risk-classifier
-description: Cheap tier-2 classifier for AW-6/TS-17 high-risk-logic detection, called only when the mechanical .claude/risk-paths.json check (hooks/detect-high-risk.sh) can't resolve whether a change touches fractional-order calculation, auth/allowlist checks, or cross-slice authorization boundaries. Never the primary implementing agent's own self-judgment.
+description: Cheap tier-2 classifier for AW-6/TS-17 high-risk-logic detection, called only when the mechanical .claude/risk-paths.json check (hooks/detect-high-risk.py) can't resolve whether a change touches fractional-order calculation, auth/allowlist checks, or cross-slice authorization boundaries. Never the primary implementing agent's own self-judgment.
 tools: Read, Grep, Glob
 ---
 
