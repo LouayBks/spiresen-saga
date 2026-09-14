@@ -34,9 +34,9 @@ section, and TS-17 (writer/reviewer separation for high-risk logic) is satisfied
 risk-path Hook → classifier → review chain, not a second one.
 
 **When it applies:** every coding session, same trigger points as Unit 1 — no invocation needed.
-Blocked-pending-real-test-runner items (TS-1/7/12/15/19's Hook halves — pytest/Vitest CI gates,
-order-randomization, retry bounds) don't apply yet; wire them the moment app code lands beyond
-`draft/`. TS-13 (no numeric coverage gate) is a permanent, deliberate absence, not a blocked item.
+TS-1/7/12/15/19's Hook halves (pytest/Vitest CI gates, order-randomization, retry bounds) are wired
+as of #9 (`backend-ci.yml`/`frontend-ci.yml`), now that real app code (`backend/`, `frontend/`)
+exists. TS-13 (no numeric coverage gate) is a permanent, deliberate absence, not a blocked item.
 
 ## Unit 3 — Review (created, not enabled)
 
