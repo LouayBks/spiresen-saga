@@ -8,9 +8,15 @@ feeds the stderr message back to Claude (PreToolUse blocking-error semantics)
 would make this check a no-op. AW-6 (ADR-004 Part 8) requires the mechanical
 check to never quietly no-op, so an unreadable/corrupt config fails closed
 (escalate) rather than failing open (silently treat everything as low-risk).
-A match means "escalate to the risk-classifier subagent / plan-reviewer / a
-pre-commit /code-review pass (TS-17)", not a permanent block: Claude sees the
-reason and can retry once it has escalated.
+A match blocks the tool call (PreToolUse exit 2 denies it) and tells Claude to
+escalate to the risk-classifier subagent / plan-reviewer / a pre-commit
+/code-review pass (TS-17) before proceeding. This hook cannot invoke a subagent
+itself — Claude Code hooks are shell commands, not agent calls — so the actual
+escalation is still something the primary agent has to do; what this hook
+guarantees is that retrying the identical edit without escalating hits the same
+block again, since the path/import match is deterministic. That's the real
+enforcement boundary: a hard stop on this specific action, not a forced
+subagent invocation.
 """
 import fnmatch
 import json
@@ -45,14 +51,35 @@ def main() -> int:
     """Return 0 (no match / not parseable) or 2 (high-risk match or unreadable config)."""
     try:
         hook_input = json.load(sys.stdin)
-    except json.JSONDecodeError:
-        return 0
+    except json.JSONDecodeError as exc:
+        # Same fail-closed reasoning as an unreadable risk-paths.json below: if this
+        # hook can't even parse its own input, tier-1 detection cannot run, and
+        # silently returning 0 would treat that as "confirmed low risk" rather
+        # than "check didn't happen."
+        print(
+            f"AW-6: hook stdin could not be parsed ({exc}). Tier-1 mechanical "
+            "detection cannot run, so this fails closed: escalate to the "
+            "risk-classifier subagent before proceeding.",
+            file=sys.stderr,
+        )
+        return 2
 
     tool_input = hook_input.get("tool_input", {})
     file_paths = find_values(tool_input, PATH_KEYS)
     text_blobs = find_values(tool_input, TEXT_KEYS)
     if not file_paths and not text_blobs:
         return 0
+
+    # tool_input.file_path is absolute; risk-paths.json's patterns are repo-relative
+    # (e.g. "features/boxes/ordering*"). Normalize before matching, or every
+    # non-empty pattern silently never matches a real edit.
+    project_dir = os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd())
+    relative_paths = []
+    for file_path in file_paths:
+        try:
+            relative_paths.append(os.path.relpath(file_path, project_dir))
+        except ValueError:
+            relative_paths.append(file_path)
 
     risk_config_path = os.path.join(os.path.dirname(__file__), "..", "risk-paths.json")
     try:
@@ -67,9 +94,20 @@ def main() -> int:
         )
         return 2
 
+    # Import-pattern matches also need the target file's current on-disk content,
+    # not just the tool_input fragment (new_string/old_string are a diff snippet,
+    # not the whole file) - otherwise an edit that doesn't touch the risky import
+    # line misses it entirely.
+    for file_path in file_paths:
+        try:
+            with open(file_path, encoding="utf-8", errors="ignore") as f:
+                text_blobs.append(f.read())
+        except OSError:
+            pass
+
     for area, spec in risk_config.get("areas", {}).items():
         for pattern in spec.get("path_patterns", []):
-            for file_path in file_paths:
+            for file_path in relative_paths:
                 if fnmatch.fnmatch(file_path, pattern):
                     _escalate(area, spec, f"path '{file_path}' matches '{pattern}'")
                     return 2
