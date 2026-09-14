@@ -1,2 +1,14 @@
-draft/
 __pycache__/
+*.pyc
+
+# backend/
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# frontend/
+node_modules/
+dist/
+.angular/
+coverage/

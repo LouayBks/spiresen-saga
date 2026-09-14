@@ -78,7 +78,7 @@ Everything from `PK: BOX#{boxId}` downward is unchanged — a Saga simply replac
 
 **Content records need to carry their Saga too:** an `ARTICLE#{id}` / `PRESENTATION#{id}` / `DESIGN#{id}` `DETAILS` record should store a `sagaId` attribute at creation time, for the same reason — so a write to that content can be authorized against Saga membership without an extra tree walk.
 
-Concrete implementation task list, open questions, and which files to touch will live in `HANDOFF.md` — **not yet created**, since implementation hasn't started (the app is still pre-`draft/`); that file is meant to be the one handed to a coding agent once it exists, this section is background for *why*, not a step-by-step.
+Concrete implementation task list, open questions, and which files to touch will live in `HANDOFF.md` — **not yet created**, since the Saga/multi-tenancy schema work itself hasn't started (#9 stood up the bare FastAPI/Angular scaffold, no DynamoDB code yet); that file is meant to be the one handed to a coding agent once it exists, this section is background for *why*, not a step-by-step. (An earlier `draft/` folder was a throwaway POC used to validate the stack choice before any of this schema work, since deleted — not a precursor to `HANDOFF.md`.)
 
 ## Boxes product surface: content types, links, and the group-nesting exception
 

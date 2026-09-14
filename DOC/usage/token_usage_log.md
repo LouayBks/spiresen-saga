@@ -24,14 +24,19 @@ Per-ticket token usage, captured via `npx ccusage@latest session` (see [README.m
 | `b445fc5c-236e-4b33-ab49-63a6ab71d6d0` | Claude | sonnet-5 | 274 | 89,954 | 610,468 | 19,810,149 | 20,510,845 | $7.25 |
 | `90559270-602f-48df-a2d8-8061a3c609a7` | Claude | sonnet-5 | 26 | 12,150 | 62,748 | 976,253 | 1,051,177 | $0.57 |
 | `3cfc073c-5d96-47c4-857e-58eede5f5ce7` | Claude | sonnet-5 | 42 | 13,084 | 45,036 | 1,418,689 | 1,476,851 | $0.59 |
-| `fd9c110e-f0ba-4735-9de7-da45359f94de` | Claude | sonnet-5 | 26 | 9,563 | 54,599 | 879,966 | 944,154 | $0.49 |
-| **Aggregate** | | | **622** | **190,330** | **1,139,960** | **30,645,925** | **31,976,837** | **$12.46** |
+| `fd9c110e-f0ba-4735-9de7-da45359f94de` | Claude | sonnet-5 | 36 | 12,062 | 123,999 | 1,328,957 | 1,465,054 | $0.88 |
+| `a86af8a6-200d-404c-bb20-d86f1b91b50b` | Claude | sonnet-5 | 142 | 45,692 | 403,747 | 8,051,345 | 8,500,926 | $3.68 |
+| `6967ff8d-ba39-43c3-8df5-b9ddffd56d1d` | Claude | sonnet-5 | 34 | 9,498 | 95,500 | 1,291,390 | 1,396,422 | $0.74 |
+| **Aggregate** | | | **808** | **248,019** | **1,708,607** | **40,437,651** | **42,395,085** | **$17.27** |
 
-*Snapshot taken mid-session on 2026-09-13 (DOC/usage setup, this log's population; `3bbc16d6` row for the architecture-vs-code-vs-external-docs review session; `bd27a6bd` row added for the commit-vs-ADR/external-docs infraction review; `509c41d8` row added for the DOC/frontend mockup severity-tiered infraction review; `8d75fe0d` row added for the coding-unit-setup-files-vs-ADR/external-docs severity-tiered infraction review; `dba1911a` row added for the added-files-vs-ADR/external-docs infraction review + this log update; `b445fc5c` row is the primary coding-unit build/fix session itself — plan drafting, the four review-and-fix rounds on the coding unit, and the unit-2 testing-doc addition; `90559270` row added for the added-files (workflow YAML + DOC/frontend) severity-tiered infraction review against ADR/architecture docs and external claude-code-action docs + this log update; `3cfc073c` row is unit 3 (review workflow) build + fix-round session; `fd9c110e` row added for the added-Skills/DOC-frontend severity-tiered infraction review against ADR/architecture docs and external Claude Code Skills docs + this log update) — re-run `ccusage` and update rows at the next checkpoint rather than adding duplicates.*
+*Snapshot taken mid-session on 2026-09-14 (DOC/usage setup, this log's population; `3bbc16d6` row for the architecture-vs-code-vs-external-docs review session; `bd27a6bd` row added for the commit-vs-ADR/external-docs infraction review; `509c41d8` row added for the DOC/frontend mockup severity-tiered infraction review; `8d75fe0d` row added for the coding-unit-setup-files-vs-ADR/external-docs severity-tiered infraction review; `dba1911a` row added for the added-files-vs-ADR/external-docs infraction review + this log update; `b445fc5c` row is the primary coding-unit build/fix session itself — plan drafting, the four review-and-fix rounds on the coding unit, and the unit-2 testing-doc addition; `90559270` row added for the added-files (workflow YAML + DOC/frontend) severity-tiered infraction review against ADR/architecture docs and external claude-code-action docs + this log update; `3cfc073c` row is unit 3 (review workflow) build + fix-round session; `fd9c110e` row is the added-Skills/DOC-frontend severity-tiered infraction review plus this session's continuation (branching-strategy/guide CLAUDE.md additions, this log's update); `a86af8a6` row is the unit-4 (maintenance) build session — the two on-demand Skills, the boxes-plan.md/application_architecture.md schema-reconciliation review-and-fix round, the `DOC/ai_assistance/units_overview.md` companion doc, and tracing the `dontloseyourmind-notes.md` deletion back to session `b445fc5c` via transcript search; `6967ff8d` row added for the added-Skills/DOC-frontend severity-tiered infraction review (doc-freshness-check, lsp-usage-check, boxes-plan.md, boxes-mockup.html) against ADR/architecture docs + this log update) — re-run `ccusage` and update rows at the next checkpoint rather than adding duplicates.*
 
-## Ticket # — \<title\>
+## Ticket #8 — Setup the project stack
 
 | Session | Agent | Models | Input | Output | Cache Create | Cache Read | Total Tokens | Cost (USD) |
 |---|---|---|---|---|---|---|---|---|
-| | | | | | | | | |
-| **Aggregate** | | | | | | | | |
+| `150d8149-6113-4b64-ae11-79dd06e6ab52` | Claude | sonnet-5 | 496 | 112,586 | 536,237 | 44,778,456 | 45,427,775 | $12.23 |
+| `edb1b48a-6be7-40cd-a885-da406468243c` | Claude | haiku-4-5 | 4,942 | 18,941 | 897,653 | 921,568 | 1,843,104 | $0.30 |
+| **Aggregate** | | | **5,438** | **131,527** | **1,433,890** | **45,700,024** | **47,270,879** | **$12.53** |
+
+*`150d8149` snapshot from mid-session 2026-09-14 (scaffold); `edb1b48a` session for applying 5 in-scope Copilot-recommended fixes to PR #24 (exception handler info-disclosure, pinned deps, backend-ci .venv setup, launch.json Vitest config, README e2e docs), committed separately without push.*
