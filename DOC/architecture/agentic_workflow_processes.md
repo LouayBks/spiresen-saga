@@ -82,11 +82,10 @@ Fixed floor applies to every plan; conditional rows apply only when the change i
 ```mermaid
 flowchart TD
     A[Terraform plan generated] --> B{Destructive or prod-scope change?}
-    B -->|yes| C["Extra human scrutiny gate\n(auto-mode classifier default-denies\nprod deploys / IaC destroy)"]
-    B -->|no, routine| D2["Human executes apply\n(merge to main, or local terraform apply)"]
-    C -->|approved| D2
-    D2 --> D[Apply]
-    D --> E["Deploy pipeline CI step:\nsmoke test against deployed endpoint"]
+    B -->|yes| C["Human approval gate\n(auto-mode classifier default-denies\nprod deploys / IaC destroy)"]
+    B -->|no, routine| D[Apply]
+    C -->|approved| D
+    D --> E["PostToolUse Hook:\nsmoke test against deployed endpoint"]
     D --> F["Scheduled Routine:\nCloudWatch filter-log-events scan\nfor ERROR entries in the polling window"]
     E --> G{Either signal unhealthy?}
     F --> G
@@ -96,9 +95,7 @@ flowchart TD
     K --> L["Draft PR opened —\nproposed fix + link back to the alert"]
     L --> M[Human reviews before merge]
 ```
-
-Two corrections against the diagram's own earlier shape, both already reflected above: **every** apply is human-executed now, not just destructive/prod ones — `branching_strategy.md`'s AW-24 tightened ADR-004 Part 3's original "routine changes may apply directly" after this document was first written; that ADR text itself hasn't been amended yet (tracked in [issue #19](https://github.com/LouayBks/spiresen-saga/issues/19), flagged as an open conflict, not silently resolved). And the smoke test is a **deploy-pipeline CI step**, not a `PostToolUse` Hook — `claude_code_setup.md` section E already explains why a hook can't reliably fill this role (it's scoped to a tool call, not to deployment completion); this diagram previously said otherwise and is now corrected to match.
-
+ 
 A second, independent entry point feeds the same investigate→branch→PR path: a standing monitoring Routine (not tied to a specific deploy) that fires on its own schedule or when an external monitoring tool calls its endpoint, per Claude Code's documented "alert triage" Routines pattern.
  
 | ID | Rule | Surface | Notes |
@@ -124,12 +121,10 @@ flowchart TD
     H -->|yes| I[Merge]
     H -->|no| J[Back to dev workflow]
 ```
-
-**Current implementation status, not just the target shape**: `claude-review.yml` today always runs the local `/code-review` path (node E) — the managed-service branch (node D) has no real integration behind it yet, `CLAUDE_REVIEW_TIER=managed` would just be a prompt string with nothing to switch to. Wiring an actual managed-service branch is tracked, not silently assumed done.
-
+ 
 | ID | Rule | Surface | Notes |
 |---|---|---|---|
-| AW-11 | Every non-draft PR routes through the GitHub Action automatically — not opt-in per PR. A draft PR is re-evaluated once it's marked ready for review (the workflow's `ready_for_review` trigger), but one merged while still draft would never get reviewed — a deliberate cost trade-off (drafts iterate heavily), not an oversight. | GitHub Action config | ADR-0004 Part 4 |
+| AW-11 | Every PR routes through the GitHub Action automatically — not opt-in per PR | GitHub Action config | ADR-0004 Part 4 |
 | AW-12 | Review surface (managed service vs. local `/code-review`) is selected automatically by plan-tier availability, checked once and cached, not re-verified per PR | GitHub Action config | Verify plan-tier availability once when wiring this up (ADR-0004's named unresolved item) |
 | AW-13 | Check-run conclusion is always neutral regardless of findings — merge authority never leaves the human reviewer | GitHub Action config | Matches Part 3's same default-deny-on-unapproved-merge posture |
  
@@ -152,7 +147,7 @@ flowchart TD
 | Agent/task def | 8 (AW-1, 2, 3, 4, 5, 6 partial, 9 partial, 10) |
 | Hook | 2 (AW-6 partial, 7 partial) |
 | Routine | 2 (AW-7 partial, 8) |
-| GitHub Action config | 4 (AW-9 partial, 11, 12, 13) |
+| GitHub Action config | 3 (AW-9 partial, 11, 12, 13) |
 | Skill | 2 (AW-17, 20) |
 | CLAUDE.md prose | 2 (AW-14, 15) |
 | N/A — deliberate absence | 2 (AW-18, 19) |

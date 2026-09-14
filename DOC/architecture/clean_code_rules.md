@@ -41,7 +41,7 @@ Directly resolves ADR-0001's carried-forward item "resistance to volume-driven q
 
 | ID | Rule | Surface | Notes |
 |---|---|---|---|
-| CC-11 | Function length soft ceiling ~40 lines | Lint config | ruff `PLR0915` (too-many-statements) as a rough proxy — it caps statement count, not literal line count, so a function with many short statements can still trip it well under 40 lines and vice versa; treat the ~40-line figure as the intent, not something this rule enforces exactly |
+| CC-11 | Function length soft ceiling ~40 lines | Lint config | ruff `PLR0915` (too-many-statements) |
 | CC-12 | Cyclomatic complexity ceiling ~10 | Lint config | ruff `C901`; ESLint `complexity` |
 | CC-13 | File length soft ceiling ~300 lines | Hook | No native ruff rule for this yet — small custom pre-commit script; ESLint has `max-lines` natively |
 | CC-14 | Function length ceiling (frontend) | Lint config | ESLint `max-lines-per-function` |
@@ -83,7 +83,7 @@ The genuine mechanically-uncoverable residual — kept intentionally small per A
 
 ## G. Structural conventions (stack idioms)
 
-Consequences of the stack already locked in (`DOC/architecture/application_architecture.md`) and the point-1 architecture choice — not independent rules, but conventions that make those choices actually hold up in code.
+Consequences of the stack already locked in (`ARCHITECTURE.md`) and the point-1 architecture choice — not independent rules, but conventions that make those choices actually hold up in code.
 
 | ID | Rule | Surface | Notes |
 |---|---|---|---|
@@ -99,7 +99,7 @@ Consequences of the stack already locked in (`DOC/architecture/application_archi
 
 | Surface | Count | Rules |
 |---|---|---|
-| Hook | 6 | CC-1, CC-2, CC-5, CC-6, CC-13, CC-15 |
+| Hook | 5 | CC-1, CC-2, CC-5, CC-6, CC-13, CC-15 |
 | Lint config | 18 | CC-3, CC-4, CC-7, CC-8, CC-10, CC-11, CC-12, CC-14, CC-16, CC-17, CC-19, CC-20, CC-21, CC-23, CC-29 (partial), CC-31 (partial), CC-32, CC-33 (if available) |
 | Skill | 3 | CC-22, CC-29 (residual), CC-31 (residual) |
 | Agent/task def | 5 | CC-9, CC-18, CC-27, CC-28, CC-33 (fallback) |
