@@ -4,18 +4,18 @@ version = "0.1.0"
 description = "FastAPI backend for the Saga box-canvas app, deployed via Mangum on Lambda"
 requires-python = ">=3.12"
 dependencies = [
-    "fastapi>=0.115",
-    "mangum>=0.19",
-    "uvicorn[standard]>=0.32",
+    "fastapi==0.141.1",
+    "mangum==0.22.0",
+    "uvicorn[standard]==0.53.0",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "ruff>=0.8",
-    "pyright>=1.1.389",
-    "pytest>=8.3",
-    "pytest-randomly>=3.15",
-    "httpx>=0.27",
+    "ruff==0.16.7",
+    "pyright==1.1.414",
+    "pytest==9.1.1",
+    "pytest-randomly==5.0.0",
+    "httpx==0.28.1",
 ]
 
 [build-system]
