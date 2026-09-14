@@ -30,14 +30,12 @@ Pin exact package versions against `awslabs/mcp`'s current releases before commi
 
 **Documentation lookup — Context7.** One naming check first: you asked for "Context8" — the real, official tool is **Context7**, published by Upstash. A "Context8" exists only as an unofficial community fork of Context7 with no meaningful difference from the original, so this is Context7 under the name you had. It fetches current, version-specific library/framework docs and code examples on demand (a `resolve-library-id` → `get-library-docs` pair of MCP tools), which is a real fit for this stack — Angular 22 and FastAPI both move fast enough that Claude's training data can be stale on API specifics, and this sidesteps that the way TS-6 already sidesteps a stale-tooling assumption for LocalStack. It's a raw MCP server, not a Claude Code plugin (no `/plugin install` form exists):
 
-Export the key as a shell variable first (read it interactively, e.g. `read -rs CONTEXT7_API_KEY`, rather than pasting the literal key into a command that lands in shell history), then reference the variable:
-
 ```bash
 # local (npx-bundled)
-claude mcp add --scope user context7 --env CONTEXT7_API_KEY="$CONTEXT7_API_KEY" -- npx -y @upstash/context7-mcp
+claude mcp add --scope user context7 -- npx -y @upstash/context7-mcp --api-key YOUR_API_KEY
 
 # or remote (hosted, no local process)
-claude mcp add --scope user --header "Authorization: Bearer $CONTEXT7_API_KEY" --transport http context7 https://mcp.context7.com/mcp
+claude mcp add --scope user --header "Authorization: Bearer YOUR_API_KEY" --transport http context7 https://mcp.context7.com/mcp
 ```
 
 The API key is optional (a free tier works unauthenticated at lower rate limits) but recommended — get one at `context7.com/dashboard`. `--scope user` matches the rest of this doc's pattern of keeping credentials/tooling choices out of the committed repo config.
@@ -139,51 +137,30 @@ Scope `sub` to this exact repo and branch — a wildcard `repo:YOUR_ORG/*` defea
 
 **Deploy role** (Terraform: Lambda, API Gateway, DynamoDB, Cognito, plus the Lambda's own execution role). This role needs `iam:CreateRole`/`iam:PassRole`, which AWS's own docs name as a real privilege-escalation vector if scoped loosely — a compromised or buggy deploy run could hand an over-privileged role to a Lambda it creates. Scope it:
 
-`iam:PassedToService` only applies to `PassRole` (it's meaningless on `CreateRole`, and unsupported on `PutRolePolicy`/`AttachRolePolicy`), so one statement carrying all four actions under that condition doesn't authorize the other three — an unsupported condition key just never matches, which silently denies-by-omission rather than allowing. Three statements, split by which conditions each action actually supports:
-
 ```json
-[
-  {
-    "Effect": "Allow",
-    "Action": "iam:PassRole",
-    "Resource": "arn:aws:iam::ACCOUNT_ID:role/spiresen-lambda-exec-*",
-    "Condition": {
-      "StringEquals": { "iam:PassedToService": "lambda.amazonaws.com" }
+{
+  "Effect": "Allow",
+  "Action": ["iam:CreateRole", "iam:PassRole", "iam:PutRolePolicy", "iam:AttachRolePolicy"],
+  "Resource": "arn:aws:iam::ACCOUNT_ID:role/spiresen-lambda-exec-*",
+  "Condition": {
+    "StringEquals": {
+      "iam:PassedToService": "lambda.amazonaws.com",
+      "iam:PermissionsBoundary": "arn:aws:iam::ACCOUNT_ID:policy/SpiresenLambdaBoundary"
     }
-  },
-  {
-    "Effect": "Allow",
-    "Action": "iam:CreateRole",
-    "Resource": "arn:aws:iam::ACCOUNT_ID:role/spiresen-lambda-exec-*",
-    "Condition": {
-      "StringEquals": { "iam:PermissionsBoundary": "arn:aws:iam::ACCOUNT_ID:policy/SpiresenLambdaBoundary" }
-    }
-  },
-  {
-    "Effect": "Allow",
-    "Action": ["iam:PutRolePolicy", "iam:AttachRolePolicy"],
-    "Resource": "arn:aws:iam::ACCOUNT_ID:role/spiresen-lambda-exec-*"
   }
-]
+}
 ```
 
-Attach a permissions boundary policy (`SpiresenLambdaBoundary`) to cap what any role this identity creates can ever do, regardless of what the Terraform code says later — and deny `iam:DeleteRolePermissionsBoundary` so that cap can't be stripped. **This role never applies anything itself** — AW-24 (`branching_strategy.md`) tightened Part 3's original human-approval-gate-on-destructive-changes into "a human always executes every apply, routine included" — so this role backs the human-executed apply (locally, or via the GitHub Action's PR-reviewed flow), never a Claude-initiated one. The `permissions.ask`-on-`terraform apply` pattern named below in section D no longer applies to Claude's own sessions for this reason; see that section's note.
+Attach a permissions boundary policy (`SpiresenLambdaBoundary`) to cap what any role this identity creates can ever do, regardless of what the Terraform code says later — and deny `iam:DeleteRolePermissionsBoundary` so that cap can't be stripped. This is the role Part 3's human-approval gate applies to: implement the gate as a `permissions.ask` rule (below) on `terraform apply`/`terraform destroy` when the plan touches prod, or — the stronger version — only ever let prod applies happen through the GitHub Action's PR-reviewed flow, never a local `terraform apply`.
 
-**Log-scan role** (the AW-8 monitoring Routine's CloudWatch access). No deploy/escalation IAM permissions at all — the actions below are read-only log access, so this role structurally can't become an escalation path even running unattended. Split by resource-ARN shape, since `GetLogEvents` needs a log-stream ARN while the others are scoped at the log-group level:
+**Log-scan role** (the AW-8 monitoring Routine's CloudWatch access). No IAM permissions at all — it structurally can't become an escalation path even running unattended:
 
 ```json
-[
-  {
-    "Effect": "Allow",
-    "Action": ["logs:FilterLogEvents", "logs:DescribeLogGroups", "logs:DescribeLogStreams"],
-    "Resource": "arn:aws:logs:REGION:ACCOUNT_ID:log-group:/aws/lambda/spiresen-*:*"
-  },
-  {
-    "Effect": "Allow",
-    "Action": "logs:GetLogEvents",
-    "Resource": "arn:aws:logs:REGION:ACCOUNT_ID:log-group:/aws/lambda/spiresen-*:log-stream:*"
-  }
-]
+{
+  "Effect": "Allow",
+  "Action": ["logs:FilterLogEvents", "logs:GetLogEvents", "logs:DescribeLogGroups", "logs:DescribeLogStreams"],
+  "Resource": "arn:aws:logs:REGION:ACCOUNT_ID:log-group:/aws/lambda/spiresen-*:*"
+}
 ```
 
 ## D. `.claude/settings.json` — permission modes and `autoMode`
@@ -194,6 +171,11 @@ Attach a permissions boundary policy (`SpiresenLambdaBoundary`) to cap what any 
 {
   "permissions": {
     "defaultMode": "acceptEdits",
+    "ask": [
+      "Bash(terraform apply *)",
+      "Bash(terraform destroy *)",
+      "Bash(git push * main)"
+    ],
     "allow": [
       "Bash(npm run *)",
       "Bash(pytest *)",
@@ -203,28 +185,26 @@ Attach a permissions boundary policy (`SpiresenLambdaBoundary`) to cap what any 
 }
 ```
 
-**No `ask` entries for `terraform apply`/`terraform destroy`/`git push * main` here** — AW-24 tightened this from "ask before" to "Claude never runs these at all," so an `ask` prompt would never actually fire: the repo's own committed `.claude/settings.json` already hard-`deny`s them (`branching_strategy.md` AW-22/AW-24), and `deny` takes precedence over anything in a personal `~/.claude/settings.json`. Only add these back as `ask` entries if that project-level `deny` is ever deliberately relaxed.
-
 **This is where AW-9's open item resolves concretely.** `autoMode.environment` (and its siblings `autoMode.allow`/`soft_deny`/`hard_deny`) are read **only** from `~/.claude/settings.json` or org-managed settings — never from anything checked into the repo. So the allowlist decision ADR-0004 left to you isn't a repo config choice at all; it's a one-time setup step on your own machine (and, separately, on whatever runs the Routines/GitHub Action, since those have their own settings scope). Concretely, if you want to keep the classifier's default-deny on production Terraform applies rather than allowlisting anything, there's nothing to configure — that's the out-of-the-box behavior. Only add an `autoMode.allow` entry if you later want to carve out a specific, named exception (e.g., a staging environment that resets nightly).
 
 ## E. Hooks
 
 **One mechanic worth flagging before you wire AW-6's mechanical check**: `PostToolUse` hooks cannot hard-block — exit code 2 is ignored on that event, because the edit has already happened by the time it fires. A hook there can only feed information back to Claude (via `additionalContext` in its JSON output) so Claude notices and self-corrects in the same turn — it's a strong nudge, not an enforced gate. For a true blocking gate, the mechanism is either a `PreToolUse` hook (before the edit lands) or, more simply, the LSP plugins from Part A: Anthropic's own docs describe the language server reporting errors back to Claude after every edit natively, without a custom hook. For CI-level enforcement (the actual backstop), the mechanical checks (ADR-0002) belong in the GitHub Action / CI pipeline, not solely a local hook.
 
-**AW-6's mechanical risk-path check is already wired** (fires before an edit, checks the touched path/content against `risk-paths.json`'s named risk areas) — this is `.claude/hooks/detect-high-risk.py`, already committed and referenced from `.claude/settings.json`:
+**AW-6's mechanical risk-path check** (fires before an edit, checks the touched path against TS-17's named risk areas):
 
 ```json
 {
   "hooks": {
     "PreToolUse": [{
       "matcher": "Edit|Write",
-      "hooks": [{ "type": "command", "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/detect-high-risk.py" }]
+      "hooks": [{ "type": "command", "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/check-risk-path.sh" }]
     }]
   }
 }
 ```
 
-`detect-high-risk.py` reads `tool_input` from stdin JSON, checks the touched path (normalized relative to `CLAUDE_PROJECT_DIR`) and content against `.claude/risk-paths.json`'s `path_patterns`/`import_patterns`, and on a match exits **2** — a `PreToolUse` exit 2 is blocking, not a soft nudge, so the edit itself is denied until Claude escalates. What this doesn't do — because a hook can't invoke a subagent, only block/allow the current call — is force the actual `risk-classifier`/`plan-reviewer`/`/code-review` invocation; that follow-through still requires the primary agent to act on the stderr message, with retrying the identical edit hitting the same block again as the backstop.
+`check-risk-path.sh` reads `tool_input.file_path` from stdin JSON and checks it against a maintained list (`features/boxes/ordering*`, `features/auth/*`, any cross-slice import) — flagging via `hookSpecificOutput.additionalContext` rather than blocking, since the actual escalation to plan-review/`/code-review` is a workflow decision (AW-4/TS-17), not a hard stop.
 
 **AW-7's smoke test** is better fired as a step in the deploy pipeline itself (the GitHub Action's post-apply step) than as a `PostToolUse` hook matching the `terraform apply` Bash call — hooks are tool-call-scoped, not "deployment succeeded" event-scoped, so the CI step is the more reliable trigger. **AW-8's CloudWatch scan** has no natural hook timer at all (hooks don't have an "N minutes later" mechanism) — this is exactly why it's a scheduled Routine, not a hook, as ADR-0004 already specified.
 
@@ -233,5 +213,5 @@ Attach a permissions boundary policy (`SpiresenLambdaBoundary`) to cap what any 
 - Confirm the HashiCorp Terraform plugin's exact install string live (`/plugin` → Discover).
 - Pin exact `awslabs.terraform-mcp-server` / `mcp-proxy-for-aws` versions against current releases.
 - Create the `SpiresenLambdaBoundary` permissions boundary policy and the two IAM roles (deploy, log-scan) before the first Terraform apply.
-- ~~Decide whether prod applies happen locally or only through the GitHub Action's PR flow~~ — settled by AW-24: never a Claude-initiated apply either way; a human always executes it, locally or via the PR-reviewed flow.
+- Decide whether prod applies happen locally (behind the `ask` rule above) or only through the GitHub Action's PR flow — both are consistent with ADR-0004, this doc doesn't force one.
 - Check the managed Code Review service's actual availability on your plan tier (AW-12, still unconfirmed).

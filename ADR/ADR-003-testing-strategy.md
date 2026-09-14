@@ -1,6 +1,6 @@
 # ADR-0003: Testing strategy for the portfolio app
 
-**Status:** Accepted. The final testing strategy document (step 4) is `testing_strategy.md`, resolved into 19 TS-rules once this decision was approved.
+**Status:** Proposed — awaiting review. Per instruction, this ADR is the stopping point for point 3; the final testing strategy document (step 4) is not defined until this decision is approved.
 **Date:** 2026-09-08
 **Scope:** two bundled decisions — (1) test-level shape and stack tooling, (2) agentic verification policy (how Claude's own testing behavior should be constrained/guided). Step 4 will turn the accepted policies into concrete, per-rule guidance the way `clean-code-rules.md` did for point 2 — not defined here.
 
