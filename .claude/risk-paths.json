@@ -1,0 +1,20 @@
+{
+  "_comment": "AW-6 mechanical risk-path check. path_patterns are glob patterns matched against edited file paths; import_patterns are literal substrings matched against edited file content (e.g. an import line), per named high-risk area (TS-17). Empty per-area lists are expected until the matching app code exists beyond draft/ — add patterns as slices are built, review whenever a new high-risk area is named.",
+  "areas": {
+    "fractional-order-calculation": {
+      "description": "Fractional/lexicographic order key generation and comparison for drag-and-drop reordering",
+      "path_patterns": [],
+      "import_patterns": []
+    },
+    "auth-allowlist": {
+      "description": "Cognito claim extraction, Saga membership/role checks, any write-authorization path",
+      "path_patterns": [],
+      "import_patterns": []
+    },
+    "cross-slice-authorization": {
+      "description": "Any code that resolves or checks a box/content item's owning Saga across slice boundaries",
+      "path_patterns": [],
+      "import_patterns": []
+    }
+  }
+}

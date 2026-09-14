@@ -6,7 +6,7 @@
 
 ## Context and objective
 
-The portfolio app is a single-service, low-traffic personal site: FastAPI (via Mangum) on Lambda behind API Gateway, an Angular 22 frontend built around a drag-and-drop nested-box canvas, DynamoDB in a single-table design, Terraform-managed infra, Cognito/Google SSO for auth. Per `ARCHITECTURE.md`, the infrastructure and data model are already decided — including a recent addition, **Sagas** (multi-tenant, user-owned collections that sit above the box tree) — and that document explicitly defers all application-code-organization decisions to this work.
+The portfolio app is a single-service, low-traffic personal site: FastAPI (via Mangum) on Lambda behind API Gateway, an Angular 22 frontend built around a drag-and-drop nested-box canvas, DynamoDB in a single-table design, Terraform-managed infra, Cognito/Google SSO for auth. Per `DOC/architecture/application_architecture.md`, the infrastructure and data model are already decided — including a recent addition, **Sagas** (multi-tenant, user-owned collections that sit above the box tree) — and that document explicitly defers all application-code-organization decisions to this work.
 
 Claude Code is the primary coding tool for this build, and the project is explicitly meant to demonstrate a well set-up Claude Code workflow: high output quality/correctness at low token cost. The objective of this ADR is to choose how the codebase is organized so that a Claude Code session can cheaply and correctly discover, write, edit, and re-orient itself in the code — while the choice still holds up as a sound architecture on ordinary software-engineering grounds, independent of any AI angle.
 
