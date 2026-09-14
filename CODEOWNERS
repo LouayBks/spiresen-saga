@@ -6,6 +6,7 @@
 # setup section) and branch protection requires review from a Code Owner on main/int.
 
 /CLAUDE.md          @LouayBks
+**/CLAUDE.md        @LouayBks
 /ADR/               @LouayBks
 /DOC/architecture/  @LouayBks
 /.claude/           @LouayBks
