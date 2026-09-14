@@ -59,10 +59,10 @@ If you only need Issues/PR/Contents access and never touch Projects, a fine-grai
 Independent of the token above — `gh` needs its own login, and does not read `GITHUB_PERSONAL_ACCESS_TOKEN` by default.
 
 ```bash
-gh auth login --with-token <<< "YOUR_PAT_HERE"
+read -rs GH_PAT && gh auth login --with-token <<< "$GH_PAT" && unset GH_PAT
 ```
 
-This stores the credential in `~/.config/gh/hosts.yml`, which persists across shells and terminal restarts without depending on any environment variable being exported.
+Reads the token from an interactive silent prompt (`read -rs`, not echoed) instead of pasting it directly into the command line — a literal PAT typed as command text lands in shell history and can be seen by anything inspecting the process list while the command runs. This stores the credential in `~/.config/gh/hosts.yml`, which persists across shells and terminal restarts without depending on any environment variable being exported.
 
 Verify:
 
@@ -78,7 +78,7 @@ The same classic PAT from B1 works here too — one token, two places it needs t
 
 A plain `export GITHUB_PERSONAL_ACCESS_TOKEN=...` typed into one terminal only lives in that shell's process tree — it will not be visible to a newly opened terminal, the VSCode extension host, or Claude's own `Bash` tool calls, which is why this can appear to work once and then "disappear."
 
-**Set it at the WSL-distro level, not in a single shell's rc file:**
+**Set it at the WSL-distro level, not in a single shell's rc file** — but note the trade-off before doing this: `/etc/environment` is world-readable and inherited by every process on the distro, every local user included, which is broader exposure than a single-user machine strictly needs. If this WSL distro is genuinely single-user, that's an acceptable trade-off for the persistence it buys; if not, prefer a user-scoped equivalent (e.g. a systemd user environment file under `~/.config/environment.d/`, permissions `600`, on a WSL2 distro with systemd support) even though it's more setup.
 
 ```bash
 # requires sudo — edits /etc/environment, applied to every new process in this WSL distro
