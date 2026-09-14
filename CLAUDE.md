@@ -16,7 +16,7 @@ Multi-tenant box-canvas app (Angular + FastAPI/Mangum/Lambda + DynamoDB). This f
 
 ## Dev workflow
 
-Full mechanics are in `agentic_workflow_processes.md` — don't restate them here, just the pointers:
+Full mechanics are in `DOC/architecture/agentic_workflow_processes.md` — don't restate them here, just the pointers:
 
 - **AW-1** — Plan Mode bypass criterion. **AW-2/AW-3** — worktree-per-issue, cross-session coordination only at real shared boundaries.
 - **AW-6/TS-17** — two-tier high-risk detection (`.claude/hooks/detect-high-risk.py` against `.claude/risk-paths.json`, falling back to the `risk-classifier` subagent). Never the primary agent's own unassisted call.
@@ -27,7 +27,7 @@ Full mechanics are in `agentic_workflow_processes.md` — don't restate them her
 
 ## Code navigation
 
-AW-16: LSP over grep for symbol navigation, once the plugin is installed for this stack — not yet done (`agentic_workflow_processes.md` section E).
+AW-16: LSP over grep for symbol navigation, once the plugin is installed for this stack — not yet done (`DOC/architecture/agentic_workflow_processes.md` section E).
 
 ## Structure
 

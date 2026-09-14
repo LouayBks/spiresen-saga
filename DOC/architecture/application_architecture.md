@@ -34,8 +34,8 @@ The static part is the *compiled* Angular bundle (JS/CSS/HTML) — that's what s
 ## Auth
 
 - Cognito User Pool, Google as the identity provider (built-in, no shim needed). This part is unchanged by multi-tenancy — Google SSO authenticates *a* user; it says nothing about which Sagas they can touch.
-- Read access to a public Saga's content is public (no auth needed to view). Whether every Saga is public, or a Saga can be private/unlisted, is an open question — see the handoff doc.
-- Write access is authorization, not authentication, and it now happens at the **Saga** level, not via a single global allowlist. See "Sagas: multi-tenancy" below — the old single-admin allowlist (`ALLOWED_WRITER_SUBS`) was a placeholder for this and is being replaced as part of the current implementation task (see `HANDOFF.md`).
+- Read access to a public Saga's content is public (no auth needed to view). Whether every Saga is public, or a Saga can be private/unlisted, is an open question — see `HANDOFF.md` (not yet created; planned as the concrete implementation task list once this work actually starts — see the note at the bottom of this section).
+- Write access is authorization, not authentication, and it now happens at the **Saga** level, not via a single global allowlist. See "Sagas: multi-tenancy" below — the old single-admin allowlist (`ALLOWED_WRITER_SUBS`) was a placeholder for this and is being replaced as part of the current implementation task (see `HANDOFF.md`, not yet created).
 
 ## DynamoDB schema (single-table)
 
@@ -78,7 +78,7 @@ Everything from `PK: BOX#{boxId}` downward is unchanged — a Saga simply replac
 
 **Content records need to carry their Saga too:** an `ARTICLE#{id}` / `PRESENTATION#{id}` / `DESIGN#{id}` `DETAILS` record should store a `sagaId` attribute at creation time, for the same reason — so a write to that content can be authorized against Saga membership without an extra tree walk.
 
-Concrete implementation task list, open questions, and which files to touch are in `HANDOFF.md` — that file is the one to hand to a coding agent; this section is background for *why*, not a step-by-step.
+Concrete implementation task list, open questions, and which files to touch will live in `HANDOFF.md` — **not yet created**, since implementation hasn't started (the app is still pre-`draft/`); that file is meant to be the one handed to a coding agent once it exists, this section is background for *why*, not a step-by-step.
 
 ## Boxes product surface: content types, links, and the group-nesting exception
 
@@ -124,4 +124,4 @@ This is the *first* domain under the Spiresen umbrella — treat it as its own r
 - Whether the API sits behind its own CloudFront distribution or is called directly via the API Gateway invoke URL (custom domain on API Gateway is the cleaner option now that the domain is settled).
 - Angular CDK drag-drop wiring for arbitrarily nested boxes (recursive component).
 - Whether future projects live as `*.spiresen.com` subdomains or get entirely separate domains — decide before the second project starts, since it changes whether the wildcard ACM cert here gets reused.
-- The multi-tenancy questions listed in `HANDOFF.md` (can a user have more than one Saga, is there still a platform-admin role distinct from Saga ownership, can Sagas be private).
+- The multi-tenancy questions listed above (can a user have more than one Saga, is there still a platform-admin role distinct from Saga ownership, can Sagas be private) — to be carried into `HANDOFF.md` once that file exists.
