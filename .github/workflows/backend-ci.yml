@@ -23,7 +23,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -e ".[dev]"
+      - run: python -m venv .venv
+      - run: |
+          source .venv/bin/activate
+          pip install -e ".[dev]"
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
       - run: ruff check .
       - run: ruff format --check .
       - run: pyright
