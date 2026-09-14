@@ -36,6 +36,7 @@ Per-ticket token usage, captured via `npx ccusage@latest session` (see [README.m
 | Session | Agent | Models | Input | Output | Cache Create | Cache Read | Total Tokens | Cost (USD) |
 |---|---|---|---|---|---|---|---|---|
 | `150d8149-6113-4b64-ae11-79dd06e6ab52` | Claude | sonnet-5 | 496 | 112,586 | 536,237 | 44,778,456 | 45,427,775 | $12.23 |
-| **Aggregate** | | | **496** | **112,586** | **536,237** | **44,778,456** | **45,427,775** | **$12.23** |
+| `edb1b48a-6be7-40cd-a885-da406468243c` | Claude | haiku-4-5 | 4,942 | 18,941 | 897,653 | 921,568 | 1,843,104 | $0.30 |
+| **Aggregate** | | | **5,438** | **131,527** | **1,433,890** | **45,700,024** | **47,270,879** | **$12.53** |
 
-*Snapshot taken mid-session on 2026-09-14 (branch + scaffold for #9: FastAPI backend, Angular frontend, CI workflows, `draft/` doc cleanup, commit_conventions.md, dependencies.md, running_locally.md/local_dev_troubleshooting.md, notes.md's token-consumption writeup, this log's own updates, and a fix commit for an accidental cross-session commit mixup) — pushing the branch now; re-run `ccusage` and update this row at the next checkpoint rather than adding a duplicate.*
+*`150d8149` snapshot from mid-session 2026-09-14 (scaffold); `edb1b48a` session for applying 5 in-scope Copilot-recommended fixes to PR #24 (exception handler info-disclosure, pinned deps, backend-ci .venv setup, launch.json Vitest config, README e2e docs), committed separately without push.*
