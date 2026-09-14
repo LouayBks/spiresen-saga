@@ -23,9 +23,9 @@ deferral: no live infra yet to justify automating this beyond a manual, on-deman
 ## Procedure
 
 1. **Find every `CLAUDE.md` in scope**: the root `CLAUDE.md`, plus any per-slice
-   `CLAUDE.md` files that exist under the app's vertical-slice directories (AW-15 — none
-   exist yet as of this writing, since the app is still in `draft/`; re-check each run,
-   don't assume the list from a prior run).
+   `CLAUDE.md` files that exist under the app's vertical-slice directories (AW-15 — as of
+   #9, `backend/CLAUDE.md` and `frontend/CLAUDE.md`; re-check each run, don't assume the
+   list from a prior run — more get added as more slices are built).
 2. **Extract every concrete reference** in each file: relative file/directory paths
    (e.g. `DOC/architecture/application_architecture.md`, `ADR/ADR-004-agentic-workflow.md`),
    and any named symbol, script, or config path it points to (e.g.
