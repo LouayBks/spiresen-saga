@@ -33,5 +33,7 @@ Per-ticket token usage, captured via `npx ccusage@latest session` (see [README.m
 
 | Session | Agent | Models | Input | Output | Cache Create | Cache Read | Total Tokens | Cost (USD) |
 |---|---|---|---|---|---|---|---|---|
-| | | | | | | | | |
-| **Aggregate** | | | | | | | | |
+| `150d8149-6113-4b64-ae11-79dd06e6ab52` | Claude | sonnet-5 | 422 | 90,305 | 492,984 | 34,425,957 | 35,009,668 | $9.76 |
+| **Aggregate** | | | **422** | **90,305** | **492,984** | **34,425,957** | **35,009,668** | **$9.76** |
+
+*Snapshot taken mid-session on 2026-09-14 (branch + 10-commit scaffold for #9: FastAPI backend, Angular frontend, CI workflows, `draft/` doc cleanup, commit_conventions.md, dependencies.md, running_locally.md/local_dev_troubleshooting.md, this log update) — session is still open (PR for #8 not yet pushed); re-run `ccusage` and update this row at the next checkpoint rather than adding a duplicate.*
