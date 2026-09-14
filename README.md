@@ -103,8 +103,8 @@ _This project is primarily built and documented with [Claude Code](https://claud
 _Information inside is challenged and reviewed, nevertheless ✨the risk of AI slop is never fully mitigated✨._
 _Feel free to flag any potential points of contention._
 
-_✨Feel free to contact me if you need more information about the project, my methodology of *using AI responsibly*, or any question that comes to mind (about the poject of course)._
+_✨Feel free to contact me if you need more information about the project, my methodology of *using AI responsibly*, or any question that comes to mind (about the project of course)._
 
-_✨✨Star the repo if it interests you, ~~so that I would feel motivated to continue~~ so that I would know if the topic is of interest or no, and what to priotize_
+_✨✨Star the repo if it interests you, ~~so that I would feel motivated to continue~~ so that I would know if the topic is of interest or no, and what to prioritize_
 
 
