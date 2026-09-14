@@ -44,7 +44,7 @@ Sourced only from official specs, first-party framework docs, and the two most w
 
 **Stack-specific — frontend:** standalone-only components; Angular 22's `inject()`/`@Service()`/signals idiom; OnPush immutability discipline; RxJS-interop bridge conventions; TypeScript `strict` mode plus Google TS's `interface`/`readonly`/visibility discipline.
 
-**Gap flagged by this research:** none of these canonical sources cover DynamoDB access-pattern-driven code organization specifically — that would need AWS's own DynamoDB Developer Guide, out of scope for this pass since it's a data-modeling concern already settled in `ARCHITECTURE.md`, not a code-organization one.
+**Gap flagged by this research:** none of these canonical sources cover DynamoDB access-pattern-driven code organization specifically — that would need AWS's own DynamoDB Developer Guide, out of scope for this pass since it's a data-modeling concern already settled in `DOC/architecture/application_architecture.md`, not a code-organization one.
 
 ---
 

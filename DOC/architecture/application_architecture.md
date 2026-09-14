@@ -34,8 +34,8 @@ The static part is the *compiled* Angular bundle (JS/CSS/HTML) — that's what s
 ## Auth
 
 - Cognito User Pool, Google as the identity provider (built-in, no shim needed). This part is unchanged by multi-tenancy — Google SSO authenticates *a* user; it says nothing about which Sagas they can touch.
-- Read access to a public Saga's content is public (no auth needed to view). Whether every Saga is public, or a Saga can be private/unlisted, is an open question — see the handoff doc.
-- Write access is authorization, not authentication, and it now happens at the **Saga** level, not via a single global allowlist. See "Sagas: multi-tenancy" below — the old single-admin allowlist (`ALLOWED_WRITER_SUBS`) was a placeholder for this and is being replaced as part of the current implementation task (see `HANDOFF.md`).
+- Read access to a public Saga's content is public (no auth needed to view). Whether every Saga is public, or a Saga can be private/unlisted, is an open question — see `HANDOFF.md` (not yet created; planned as the concrete implementation task list once this work actually starts — see the note at the bottom of this section).
+- Write access is authorization, not authentication, and it now happens at the **Saga** level, not via a single global allowlist. See "Sagas: multi-tenancy" below — the old single-admin allowlist (`ALLOWED_WRITER_SUBS`) was a placeholder for this and is being replaced as part of the current implementation task (see `HANDOFF.md`, not yet created).
 
 ## DynamoDB schema (single-table)
 
@@ -78,7 +78,23 @@ Everything from `PK: BOX#{boxId}` downward is unchanged — a Saga simply replac
 
 **Content records need to carry their Saga too:** an `ARTICLE#{id}` / `PRESENTATION#{id}` / `DESIGN#{id}` `DETAILS` record should store a `sagaId` attribute at creation time, for the same reason — so a write to that content can be authorized against Saga membership without an extra tree walk.
 
-Concrete implementation task list, open questions, and which files to touch are in `HANDOFF.md` — that file is the one to hand to a coding agent; this section is background for *why*, not a step-by-step.
+Concrete implementation task list, open questions, and which files to touch will live in `HANDOFF.md` — **not yet created**, since the Saga/multi-tenancy schema work itself hasn't started (#9 stood up the bare FastAPI/Angular scaffold, no DynamoDB code yet); that file is meant to be the one handed to a coding agent once it exists, this section is background for *why*, not a step-by-step. (An earlier `draft/` folder was a throwaway POC used to validate the stack choice before any of this schema work, since deleted — not a precursor to `HANDOFF.md`.)
+
+## Boxes product surface: content types, links, and the group-nesting exception
+
+Reconciles `DOC/frontend/boxes-plan.md` (the box-canvas product/UI spec) against the schema above — written here because that's a real data-model decision, not a UI detail, and this file is the source of truth for schema (per `CLAUDE.md`'s pointer). `boxes-plan.md` should be read as the product spec; this section is the accompanying schema amendment.
+
+**`Box` gets a `kind` attribute:** `note` (title + short body + theme dot + date), `media` (thumbnail-led, for an article/video), or `group` (contains other boxes; opens as a window rather than expanding in place). `kind` is orthogonal to the S/M/L size tier already on `Box`.
+
+**`Link` is a new entity, sibling to `Box` under a Saga's partition:**
+
+```
+PK: SAGA#{sagaId}   SK: LINK#{boxA}#{boxB}   -> box-to-box link. attrs: link type (theme | timeline), optional label
+```
+
+**Group-box children are a deliberate, bounded exception to the recursive box-tree schema, not a competing general schema.** The schema above (`PK: BOX#{boxId} / SK: BOX#{childBoxId}`) is unchanged and still applies to boxes generally. For a `group`-kind box specifically, children are stored as lightweight inline summary records (title, theme tag) on the group box's own item rather than as independent `BOX#{childBoxId}` items — they have no position, no links, and no id of their own, because a group's canvas layout is computed once on first open and persisted (see `boxes-plan.md` §9), not derived from independently-addressable child items. **Promoting a child out of the group is the explicit escape hatch back into the general schema**: promotion mints the child a real box id and writes it as an ordinary top-level `PK: SAGA#{sagaId} / SK: BOX#{boxId}` item — at that point it's a fully general box again, indistinguishable from one that was never grouped.
+
+**Authorization fields carry forward unchanged for `Box` and `Link`:** both are minted with the `{sagaId}.{shortId}` box-id namespacing convention decided above (a `Link`'s own id embeds its sagaId the same way; the two box ids it references are themselves already namespaced). Inline group-child summary records need no id or separate authorization path — they aren't independently writable; a write to them is a write to the parent group box, authorized the same way. Only a *promoted* child needs its own namespaced id, at the moment it's promoted.
 
 ## Terraform module layout
 
@@ -108,4 +124,4 @@ This is the *first* domain under the Spiresen umbrella — treat it as its own r
 - Whether the API sits behind its own CloudFront distribution or is called directly via the API Gateway invoke URL (custom domain on API Gateway is the cleaner option now that the domain is settled).
 - Angular CDK drag-drop wiring for arbitrarily nested boxes (recursive component).
 - Whether future projects live as `*.spiresen.com` subdomains or get entirely separate domains — decide before the second project starts, since it changes whether the wildcard ACM cert here gets reused.
-- The multi-tenancy questions listed in `HANDOFF.md` (can a user have more than one Saga, is there still a platform-admin role distinct from Saga ownership, can Sagas be private).
+- The multi-tenancy questions listed above (can a user have more than one Saga, is there still a platform-admin role distinct from Saga ownership, can Sagas be private) — to be carried into `HANDOFF.md` once that file exists.
