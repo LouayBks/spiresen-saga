@@ -44,16 +44,21 @@ order-randomization, retry bounds) don't apply yet; wire them the moment app cod
 |---|---|---|
 | Review workflow | `.github/workflows/claude-review.yml` | AW-11/12/13 |
 
-**When it fires:** automatically, on every `pull_request` event — the workflow itself isn't
-opt-in. "Not enabled" means something narrower: it is **not** a required status check in branch
+**When it fires:** automatically, on `opened`/`synchronize`/`reopened`/`ready_for_review` — not
+literally every `pull_request` event, and a draft PR is skipped until it's marked ready (a
+deliberate cost trade-off, not an oversight) — the workflow itself isn't opt-in otherwise.
+"Not enabled" means something narrower: it is **not** a required status check in branch
 protection on `main`, so a red or absent run never blocks a merge, and its own check-run
 conclusion is hardcoded neutral regardless of findings (AW-13) — merge authority stays fully
 human. Turning this "on" in the fuller sense (making it gate merges) is a separate, deliberate
 step, not something this workflow file does by existing.
 
-**Plan-tier fallback:** the workflow tries the managed Code Review service first, falls back to a
-local `/code-review` background subagent when that's unavailable (AW-12) — this degrades
-gracefully either way, so it didn't need to wait on confirming this account's plan tier.
+**Plan-tier fallback, current status:** the workflow always runs the local `/code-review` path
+today, as a fresh-context background subagent — there is no real managed-service integration
+wired yet, so "tries the managed Code Review service first" (AW-12) describes the target shape,
+not what `claude-review.yml` actually does right now. This degrades gracefully either way, so it
+didn't need to wait on confirming this account's plan tier — but the managed branch itself is
+still a TODO (issue #19), not a silently-assumed-done feature.
 
 ## Unit 4 — Maintenance (created, not enabled)
 
