@@ -102,7 +102,7 @@ Contested points:
 
 ## Consequences and limitations
 
-**A tension to watch, not resolved by this ADR:** this project's stack (FastAPI, locked in via `ARCHITECTURE.md`) is the second-worst-scoring backend framework in the Constraint Decay benchmark, and that paper implicates FastAPI's own type-hint-driven validation as a contributor. ADR-0001 already planned to lean on typed contracts at slice boundaries to fix the README's named silent-fix risk (fractional ordering, auth allowlist), and this ADR's mechanical core leans on typing further still. Neither ADR is wrong to do this — but "add more types = strictly better" is not a safe assumption to carry forward unexamined; watch actual correctness outcomes rather than assuming the typed-contract strategy pays off by default.
+**A tension to watch, not resolved by this ADR:** this project's stack (FastAPI, locked in via `DOC/architecture/application_architecture.md`) is the second-worst-scoring backend framework in the Constraint Decay benchmark, and that paper implicates FastAPI's own type-hint-driven validation as a contributor. ADR-0001 already planned to lean on typed contracts at slice boundaries to fix the README's named silent-fix risk (fractional ordering, auth allowlist), and this ADR's mechanical core leans on typing further still. Neither ADR is wrong to do this — but "add more types = strictly better" is not a safe assumption to carry forward unexamined; watch actual correctness outcomes rather than assuming the typed-contract strategy pays off by default.
 
 Risks and limitations of the hybrid strategy itself, stated generally:
 
