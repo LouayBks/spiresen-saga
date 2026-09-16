@@ -7,9 +7,9 @@ work, and the `terraform apply` calls themselves (Claude never applies, per AW-2
 order; several steps are hard prerequisites for the ones after.
 
 What already exists in the repo by the time you start this: `infra/modules/{dns,static-site,api}`,
-`infra/environments/{prod,int}` (region `eu-west-3`, ACM forced to `us-east-1` via a provider
+`infra/environments/{prod,int,dev}` (region `eu-west-3`, ACM forced to `us-east-1` via a provider
 alias), `infra/bootstrap` (state bucket, no DynamoDB — native S3 locking), and
-`.github/workflows/{infra-deploy,infra-deploy-int,frontend-deploy,frontend-deploy-int}.yml`.
+`.github/workflows/{infra-deploy,infra-deploy-int,infra-deploy-dev,frontend-deploy,frontend-deploy-int,frontend-deploy-dev}.yml`.
 
 ## 1. AWS account + root security
 
@@ -222,13 +222,13 @@ your step-2 session, if you'd rather not click through it):
    stopped being true the moment `api` shipped; if you're reading this after checking out an
    older revision, add this statement before applying anything that touches `api`.)
 4. Edit the role's **Trust relationships** to scope `sub` to this exact repo (a bare wildcard
-   here defeats the point of the trust boundary) — but note it needs *five* patterns, not one:
+   here defeats the point of the trust boundary) — but note it needs *six* patterns, not one:
    `infra-deploy.yml`'s `plan` job assumes this same role on every PR (to comment the Terraform
    diff), and GitHub's OIDC token carries a different `sub` claim per trigger type — a
    `pull_request`-triggered run's token never matches a `ref:refs/heads/main` condition, so
    scoping to only the push-to-main pattern leaves the `plan` job permanently unable to
    authenticate. Same reasoning adds a pattern for `int`: `infra-deploy-int.yml`/
-   `frontend-deploy-int.yml` (the int/`dev.athar.spiresen.com` deploy target, AW-24) push-trigger
+   `frontend-deploy-int.yml` (the int/`int.athar.spiresen.com` deploy target, AW-24) push-trigger
    on `int`, emitting `ref:refs/heads/int`.
 
    **A fifth gotcha, easy to miss entirely**: any job that declares `environment:` gets a
@@ -246,6 +246,16 @@ your step-2 session, if you'd rather not click through it):
    required reviewer, so declaring it there would pause every PR for manual approval just to
    compute a plan diff. Proving the claim shape via `int` is enough; it's the same GitHub
    mechanism regardless of environment name.
+
+   **`dev` needs only `environment:dev`, no ref-based pattern at all.** `infra-deploy-dev.yml`/
+   `frontend-deploy-dev.yml` have no `plan` job (every push to any `dev/**` branch already gets
+   a real `apply` — that's the point, see AW-24) and their one job declares `environment: dev`,
+   so the token is always the environment-scoped shape, never a branch-ref one — and critically,
+   `environment:dev` doesn't vary by *which* `dev/*` branch pushed, so one pattern covers every
+   branch under `dev/`. The workflow's own `on.push.branches: ["dev/**"]` filter is what actually
+   restricts which branches trigger the run; the OIDC claim and the branch filter are two
+   independent mechanisms; don't confuse "which branches can trigger this" with "what the trust
+   policy needs to allow."
 
    **Also — use the immutable `sub` format, not the legacy name-only one.** GitHub switched
    the *default* subject-claim format on 2026-07-15: repos created on or after that date (this
@@ -271,16 +281,17 @@ your step-2 session, if you'd rather not click through it):
              "repo:LouayBks@118669726/spiresen-saga@1360728038:ref:refs/heads/int",
              "repo:LouayBks@118669726/spiresen-saga@1360728038:pull_request",
              "repo:LouayBks@118669726/spiresen-saga@1360728038:environment:prod",
-             "repo:LouayBks@118669726/spiresen-saga@1360728038:environment:int"
+             "repo:LouayBks@118669726/spiresen-saga@1360728038:environment:int",
+             "repo:LouayBks@118669726/spiresen-saga@1360728038:environment:dev"
            ]
          }
        }
      }]
    }
    ```
-   (Replace `ACCOUNT_ID` with your 12-digit account number — IAM → Dashboard.) All five
+   (Replace `ACCOUNT_ID` with your 12-digit account number — IAM → Dashboard.) All six
    patterns stay scoped to this exact repo — none is a wildcard across repos/orgs — so the
-   trust boundary this step is meant to establish still holds; it's just five legitimate
+   trust boundary this step is meant to establish still holds; it's just six legitimate
    trigger shapes instead of one, in the claim format this repo actually emits.
 5. **GitHub repo** → Settings → Secrets and variables → Actions → **Variables** tab → New
    repository variable:
@@ -295,30 +306,45 @@ your step-2 session, if you'd rather not click through it):
    `int` via required PR review). This environment exists purely so the variables below can be
    scoped per-environment under the same name (`STATIC_SITE_BUCKET_NAME` etc.) instead of
    needing `_PROD`/`_INT`-suffixed variable names.
-8. Once `terraform apply` has run at least once for each environment (`infra/environments/prod`
-   and `infra/environments/int`), read its outputs and set two more variables **per
-   environment** (repo → Settings → Environments → `prod`/`int` → environment-level variables,
-   not the repo-level `Variables` tab used for `AWS_DEPLOY_ROLE_ARN`):
+8. **Settings → Environments → New environment** named `dev` — also **no** required reviewer
+   (AW-24's deliberate exception: `dev` deploys on every push to any `dev/*` branch, with no PR
+   gate at all — that's the whole point of this tier, catching permission/deploy problems before
+   the `int` PR stage). Same variable-scoping-only purpose as `int`'s environment.
+9. Once `terraform apply` has run at least once for each environment (`infra/environments/prod`,
+   `infra/environments/int`, `infra/environments/dev` — **and, for `int`, only after its rename
+   to `int.athar.spiresen.com` is confirmed live**, since `environments/dev`'s first apply
+   claims the `dev.athar.spiresen.com` hostname `int` used to own; applying `dev` first would
+   collide with `int`'s still-existing record), read each one's outputs and set two more
+   variables **per environment** (repo → Settings → Environments → `prod`/`int`/`dev` →
+   environment-level variables, not the repo-level `Variables` tab used for
+   `AWS_DEPLOY_ROLE_ARN`):
    - `STATIC_SITE_BUCKET_NAME` = `terraform output -raw static_site_bucket_name`
    - `STATIC_SITE_DISTRIBUTION_ID` = `terraform output -raw static_site_distribution_id`
 
-   These are what `frontend-deploy.yml`/`frontend-deploy-int.yml` sync the compiled Angular
-   bundle to and invalidate after every deploy.
+   These are what `frontend-deploy.yml`/`frontend-deploy-int.yml`/`frontend-deploy-dev.yml` sync
+   the compiled Angular bundle to and invalidate after every deploy.
 
 ## 9. Verify the pipeline end to end
 
+0. Push a trivial commit to a scratch `dev/*` branch **before relying on `dev` for anything** —
+   there's no `plan` job for this target (every push is already a real apply, see AW-24), so
+   this push is the first actual test that the `environment:dev` trust-policy pattern works.
+   Confirm `infra-deploy-dev`'s `configure-aws-credentials` step succeeds, then
+   `frontend-deploy-dev`, then hit `dev.athar.spiresen.com` and the dev API's `/health` invoke
+   URL. If you have two branches to push from, push both within a minute of each other at least
+   once to confirm the `concurrency:` group queues them rather than racing.
 1. Open a PR that touches `infra/**` (even a no-op comment change) → confirm both `infra-deploy`
    and `infra-deploy-int`'s `plan` jobs run and each comment their own Terraform plan on the PR.
 2. Merge it into `int` → confirm `infra-deploy-int`'s `apply` job runs unattended on push to
    `int` (no reviewer pause, per AW-24), then `frontend-deploy-int` once `frontend/**` changes
-   too. Hit `dev.athar.spiresen.com` and the int API's `/health` invoke URL to confirm real
+   too. Hit `int.athar.spiresen.com` and the int API's `/health` invoke URL to confirm real
    traffic.
 3. Promote to `main` → confirm `infra-deploy`'s `apply` job pauses for the `prod` Environment's
    required reviewer, then `frontend-deploy`. Hit `athar.spiresen.com` and prod's `/health` the
    same way.
-4. `terraform plan -input=false` locally, from each of `infra/environments/prod` and
-   `infra/environments/int`, should show zero diff once both have been applied — confirms CI's
-   state matches what you applied, not a drifted duplicate.
+4. `terraform plan -input=false` locally, from each of `infra/environments/{prod,int,dev}`,
+   should show zero diff once all three have been applied — confirms CI's state matches what
+   you applied, not a drifted duplicate.
 
 ## If something's stuck
 
