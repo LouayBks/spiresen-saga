@@ -4,7 +4,7 @@ Multi-tenant box-canvas app (Angular + FastAPI/Mangum/Lambda + DynamoDB). This f
 
 ## Source of truth
 
-- `ADR/ADR-001..004` — accepted decisions (architecture, clean code, testing, agentic workflow) and why.
+- `ADR/` — accepted decisions and why (code architecture, cloud architecture, rules of coding and testing, agentic workflow, etc.).
 - `DOC/architecture/application_architecture.md` — stack, schema, current open items.
 - `DOC/architecture/dependencies.md` — tracked runtime/tooling versions for the actual stack (Python, Node, Angular, etc.); kept current, not a snapshot.
 - `DOC/architecture/clean_code_rules.md` (CC-1..33), `testing_strategy.md` (TS-1..19), `agentic_workflow_processes.md` (AW-1..20) — the concrete, rule-tagged specs.
@@ -13,6 +13,7 @@ Multi-tenant box-canvas app (Angular + FastAPI/Mangum/Lambda + DynamoDB). This f
 - `DOC/templates/plan_template.md` — the plan template referenced below.
 - `DOC/guides/using_coding_agents.md` — the step-by-step dev walkthrough (branch → plan → implement → PR) tying the rules above together; start here if you're picking up a ticket for the first time.
 - `DOC/guides/running_locally.md` — how to actually run each slice on your machine (setup, dev server, lint/test commands), per slice as it's scaffolded.
+- `DOC/guides/infra_setup.md` — human-only walkthrough for AWS account/domain/cert/pipeline setup (#10/#11); pairs with `ADR-005` for the credential-strategy reasoning behind it.
 - `DOC/frontend/` — product/UI specs (e.g. `boxes-plan.md`) for the box-canvas surface. These describe *what to build*; any new data-model entity or field they introduce must be reconciled back into `application_architecture.md` (the schema source of truth), not left to live only here.
 
 (A consolidated `DOC/architecture/agentic_fleet.md` — how the artifacts below fit together and how to invoke them — is planned but not yet written; this section will point to it once it exists, not before.)

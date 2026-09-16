@@ -7,7 +7,7 @@ lists live in `backend/pyproject.toml` and `frontend/package.json`; this file is
 human-scannable summary of what actually matters — runtimes and the libraries a version bump of
 which would be worth knowing about.
 
-Last verified: 2026-09-14 (#9).
+Last verified: 2026-09-15 (#10).
 
 ## Backend (`backend/`)
 
@@ -36,7 +36,9 @@ Last verified: 2026-09-14 (#9).
 | Prettier | 3.9.6 | + `eslint-config-prettier` to avoid rule conflicts |
 | RxJS | 7.8.2 | |
 
-## Infra (planned, not yet built — #11)
+## Infra (`infra/`)
 
-Not tracked here yet since nothing is provisioned: Terraform provider/module versions belong in
-this table once `infra/` exists, not before.
+| Dependency | Version | Notes |
+|---|---|---|
+| Terraform | 1.11.2 (local); `required_version = ">= 1.9"` | CLI used to author/validate `infra/`; CI pins its own version in `infra-deploy.yml` |
+| `hashicorp/aws` provider | `~> 6.0` | wildcard ACM cert (#10) forces `us-east-1` regardless of the environment's own region, via a provider alias |

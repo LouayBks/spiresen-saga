@@ -115,13 +115,29 @@ work.
 
 Claude's role in deployment is prepare and verify only (plan Terraform diffs, review them,
 run post-deploy health checks) — never `apply`, never `destroy`, for any change, destructive or
-routine. A human always executes the apply, either by merging to `main` (triggering CI/CD) or
-running Terraform locally. This supersedes ADR-004 Part 3's "routine changes may apply
-directly" — see the open item at the top of this doc.
+routine. A human always executes the apply, either by merging to a deploy-target branch
+(triggering CI/CD) or running Terraform locally. This supersedes ADR-004 Part 3's "routine
+changes may apply directly" — see the open item at the top of this doc.
 
-The deploy workflow (not yet built — only `claude-review.yml` exists under
-`.github/workflows/` today) must trigger **only** on push to `main`. No `workflow_dispatch` path
-that Claude can invoke, no deploy-on-PR, no deploy from any `dev/*` or `int` branch.
+**Two deploy targets exist as of the minimal-deploy-pipeline work (2026-09-16):**
+`infra-deploy.yml`/`frontend-deploy.yml` (**prod**, `athar.spiresen.com`) trigger only on push
+to `main`, gated behind the "prod" GitHub Environment's required reviewer.
+`infra-deploy-int.yml`/`frontend-deploy-int.yml` (**int**, `dev.athar.spiresen.com`) trigger
+only on push to `int`, deliberately **not** reviewer-gated — int is the fast-iteration
+environment, and a human still approves every merge into `int` via required PR review (AW-25),
+so the deploy itself runs unattended the same way `backend-ci`/`frontend-ci` already do on
+`int`. This is a deliberate widening of this rule's original text (which named only `main`, from
+when a single deploy target existed) — not a loosening of it: **the constraint below is per
+deploy target, not "main only."**
+
+For **each** deploy target: no `workflow_dispatch` path that Claude can invoke, no
+deploy-on-PR, no deploy from any `dev/*` branch — a target's auto-apply trigger is exactly the
+one branch that owns it (`main`→prod, `int`→int), nothing else.
+
+Both AWS environments currently share a single AWS account and one CI OIDC role
+(differentiated only by resource naming and separate Terraform state, not by a credential
+boundary) — fully separate per-environment AWS identity (a second account, its own OIDC trust
+root) is a known future item, not yet built (see ADR-005).
 
 ## AW-25 — Claude's commits reach `main`/`int` only via human-approved PR
 
