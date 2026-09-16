@@ -1,0 +1,44 @@
+name: frontend-deploy
+
+# Not Terraform-managed — S3 object sync for a hashed SPA bundle doesn't belong in
+# .tf files. Gated behind the "prod" GitHub Environment's required reviewer, same as
+# infra-deploy.yml's apply job: an S3 sync has no plan/diff step the way Terraform
+# does, so this is the only brake on a bad push reaching production directly.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/frontend-deploy.yml"
+
+permissions:
+  id-token: write # required for GitHub OIDC -> AWS role assumption
+  contents: read
+
+defaults:
+  run:
+    working-directory: frontend
+
+env:
+  AWS_REGION: "eu-west-3"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npx ng build
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - run: aws s3 sync dist/frontend/browser/ s3://${{ vars.STATIC_SITE_BUCKET_NAME }}/ --delete
+      - run: aws cloudfront create-invalidation --distribution-id ${{ vars.STATIC_SITE_DISTRIBUTION_ID }} --paths "/*"
