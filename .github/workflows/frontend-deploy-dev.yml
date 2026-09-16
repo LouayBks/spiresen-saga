@@ -1,0 +1,49 @@
+name: frontend-deploy-dev
+
+# Same shape as frontend-deploy-int.yml, targeting dev — every push to any dev/**
+# branch deploys directly, no PR gate at all (AW-24's deliberate exception for this
+# target). One shared environment (last-push-wins) — concurrency below queues
+# overlapping pushes instead of racing for the same S3 bucket/CloudFront
+# distribution.
+
+on:
+  push:
+    branches: ["dev/**"]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/frontend-deploy-dev.yml"
+
+concurrency:
+  group: frontend-deploy-dev
+  cancel-in-progress: false
+
+permissions:
+  id-token: write # required for GitHub OIDC -> AWS role assumption
+  contents: read
+
+defaults:
+  run:
+    working-directory: frontend
+
+env:
+  AWS_REGION: "eu-west-3"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: dev # unprotected — variable scoping only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npx ng build
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - run: aws s3 sync dist/frontend/browser/ s3://${{ vars.STATIC_SITE_BUCKET_NAME }}/ --delete
+      - run: aws cloudfront create-invalidation --distribution-id ${{ vars.STATIC_SITE_DISTRIBUTION_ID }} --paths "/*"
