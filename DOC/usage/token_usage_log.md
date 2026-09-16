@@ -40,3 +40,12 @@ Per-ticket token usage, captured via `npx ccusage@latest session` (see [README.m
 | **Aggregate** | | | **5,438** | **131,527** | **1,433,890** | **45,700,024** | **47,270,879** | **$12.53** |
 
 *`150d8149` snapshot from mid-session 2026-09-14 (scaffold); `edb1b48a` session for applying 5 in-scope Copilot-recommended fixes to PR #24 (exception handler info-disclosure, pinned deps, backend-ci .venv setup, launch.json Vitest config, README e2e docs), committed separately without push.*
+
+## Tickets #10–#11 — AWS/domain/certs setup + deployment pipeline
+
+| Session | Agent | Models | Input | Output | Cache Create | Cache Read | Total Tokens | Cost (USD) |
+|---|---|---|---|---|---|---|---|---|
+| `c107173e-fffe-4a60-b237-d0f398c7c710` | Claude | sonnet-5, haiku-4-5 | 70 | 26,252 | 71,832 | 3,173,365 | 3,271,519 | $1.18 |
+| **Aggregate** | | | **70** | **26,252** | **71,832** | **3,173,365** | **3,271,519** | **$1.18** |
+
+*Plan mode + implementation session (2026-09-15): Terraform configs for `infra/modules/dns` (Route 53 zone + wildcard ACM cert), `infra/environments/prod` (module wiring), and `infra/bootstrap` (S3 state backend + DynamoDB lock). GitHub Actions workflow `infra-deploy.yml` (plan-on-PR, apply-on-push-to-main, OIDC role assumption). Docs updates (dependencies.md Infra table, application_architecture.md Open Items). Configs validated locally (`terraform fmt`/`validate` clean, YAML parsed). Not yet committed.*
