@@ -120,6 +120,7 @@ This is the *first* domain under the Spiresen umbrella — treat it as its own r
 
 ## Open items / TBD
 
+- **Infra CI/CD plumbing is built (#10/#11)**: `infra/modules/dns` + `infra/environments/prod` (Route 53 zone, wildcard ACM cert), `infra/bootstrap` (Terraform remote-state S3 bucket, native S3 state locking), and `.github/workflows/infra-deploy.yml` (plan-on-PR, apply-on-push-to-main, per AW-24). The `static-site` and `api` modules named below are still not built — nothing to deploy them for until the app itself is ready to ship, which is a separate future ticket.
 - Final subdomain name (Saga vs. Sīra vs. something else) and whether it's `<name>.spiresen.com` or its own separate domain.
 - Whether the API sits behind its own CloudFront distribution or is called directly via the API Gateway invoke URL (custom domain on API Gateway is the cleaner option now that the domain is settled).
 - Angular CDK drag-drop wiring for arbitrarily nested boxes (recursive component).
