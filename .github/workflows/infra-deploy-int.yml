@@ -1,21 +1,23 @@
-name: infra-deploy
+name: infra-deploy-int
 
-# AW-24 (DOC/architecture/branching_strategy.md): plan on PR, apply only on push to
-# main, no workflow_dispatch — nothing in this file gives Claude (or anyone) a way to
-# trigger an apply outside a human-merged PR into main.
+# AW-24 (DOC/architecture/branching_strategy.md): int is a second, parallel deploy
+# target alongside prod (infra-deploy.yml) — plan on PR, apply only on push to int,
+# no workflow_dispatch. Unlike prod's apply job, this one runs unattended (no
+# required-reviewer gate) since int is the fast-iteration environment; a human still
+# gates every merge into int via required PR review, same as main.
 
 on:
   pull_request:
     paths:
       - "infra/**"
       - "backend/**"
-      - ".github/workflows/infra-deploy.yml"
+      - ".github/workflows/infra-deploy-int.yml"
   push:
-    branches: [main]
+    branches: [int]
     paths:
       - "infra/**"
       - "backend/**"
-      - ".github/workflows/infra-deploy.yml"
+      - ".github/workflows/infra-deploy-int.yml"
 
 permissions:
   id-token: write # required for GitHub OIDC -> AWS role assumption
@@ -24,7 +26,7 @@ permissions:
 
 defaults:
   run:
-    working-directory: infra/environments/prod
+    working-directory: infra/environments/int
 
 env:
   TF_VERSION: "1.11.2"
@@ -57,18 +59,18 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const plan = fs.readFileSync('infra/environments/prod/plan.txt', 'utf8').slice(0, 60000);
+            const plan = fs.readFileSync('infra/environments/int/plan.txt', 'utf8').slice(0, 60000);
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: `### Terraform plan — infra/environments/prod\n\`\`\`\n${plan}\n\`\`\``,
+              body: `### Terraform plan — infra/environments/int\n\`\`\`\n${plan}\n\`\`\``,
             });
 
   apply:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/int'
     runs-on: ubuntu-latest
-    environment: prod # requires the "prod" GitHub Environment to exist for this to gate on required reviewers
+    environment: int # unprotected — exists for variable scoping (STATIC_SITE_BUCKET_NAME etc.), not a reviewer gate
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
