@@ -112,6 +112,15 @@ resource "aws_route53_record" "site" {
   name    = var.domain_name
   type    = "A"
 
+  # name is ForceNew — without this, renaming domain_name later destroys the old
+  # record before creating the new one. Callers that create their own cert for this
+  # domain_name (e.g. environments/int's aws_acm_certificate) already guard against
+  # the equivalent risk on the cert side with the same lifecycle block; this closes
+  # the matching gap on the DNS record.
+  lifecycle {
+    create_before_destroy = true
+  }
+
   alias {
     name                   = aws_cloudfront_distribution.site.domain_name
     zone_id                = aws_cloudfront_distribution.site.hosted_zone_id
