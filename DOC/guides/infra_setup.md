@@ -222,14 +222,30 @@ your step-2 session, if you'd rather not click through it):
    stopped being true the moment `api` shipped; if you're reading this after checking out an
    older revision, add this statement before applying anything that touches `api`.)
 4. Edit the role's **Trust relationships** to scope `sub` to this exact repo (a bare wildcard
-   here defeats the point of the trust boundary) — but note it needs *three* patterns, not one:
+   here defeats the point of the trust boundary) — but note it needs *five* patterns, not one:
    `infra-deploy.yml`'s `plan` job assumes this same role on every PR (to comment the Terraform
    diff), and GitHub's OIDC token carries a different `sub` claim per trigger type — a
    `pull_request`-triggered run's token never matches a `ref:refs/heads/main` condition, so
    scoping to only the push-to-main pattern leaves the `plan` job permanently unable to
-   authenticate. Same reasoning adds a third pattern for `int`: once `infra-deploy-int.yml`/
-   `frontend-deploy-int.yml` exist (the int/`dev.athar.spiresen.com` deploy target, AW-24), a
-   push-to-`int` run emits `ref:refs/heads/int`, which needs its own entry too.
+   authenticate. Same reasoning adds a pattern for `int`: `infra-deploy-int.yml`/
+   `frontend-deploy-int.yml` (the int/`dev.athar.spiresen.com` deploy target, AW-24) push-trigger
+   on `int`, emitting `ref:refs/heads/int`.
+
+   **A fifth gotcha, easy to miss entirely**: any job that declares `environment:` gets a
+   *different* `sub` claim again — `environment:<name>` instead of the ref-based one — even on
+   the exact same push event. `infra-deploy.yml`'s and `frontend-deploy.yml`'s `apply`/`deploy`
+   jobs both declare `environment: prod` (same for `int`'s `environment: int`), so
+   `ref:refs/heads/main`/`ref:refs/heads/int` alone isn't enough — those two patterns only ever
+   match the `plan` job's PR-triggered token, never the real apply. This bit us for real: the
+   trust policy was written and tested against `plan`'s token shape, and the gap only surfaced
+   on an actual merge-to-`int`, when `apply` tried to assume the role with a token shape nobody
+   had added yet. `infra-deploy-int.yml`'s `plan` job now also declares `environment: int` (a
+   deliberate, harmless addition — `int`'s Environment has no required-reviewer rule, so this
+   costs nothing) specifically so this class of mismatch surfaces on the PR, not after merge.
+   `infra-deploy.yml`'s `plan` job does **not** mirror this — `prod`'s Environment *does* have a
+   required reviewer, so declaring it there would pause every PR for manual approval just to
+   compute a plan diff. Proving the claim shape via `int` is enough; it's the same GitHub
+   mechanism regardless of environment name.
 
    **Also — use the immutable `sub` format, not the legacy name-only one.** GitHub switched
    the *default* subject-claim format on 2026-07-15: repos created on or after that date (this
@@ -253,16 +269,18 @@ your step-2 session, if you'd rather not click through it):
            "token.actions.githubusercontent.com:sub": [
              "repo:LouayBks@118669726/spiresen-saga@1360728038:ref:refs/heads/main",
              "repo:LouayBks@118669726/spiresen-saga@1360728038:ref:refs/heads/int",
-             "repo:LouayBks@118669726/spiresen-saga@1360728038:pull_request"
+             "repo:LouayBks@118669726/spiresen-saga@1360728038:pull_request",
+             "repo:LouayBks@118669726/spiresen-saga@1360728038:environment:prod",
+             "repo:LouayBks@118669726/spiresen-saga@1360728038:environment:int"
            ]
          }
        }
      }]
    }
    ```
-   (Replace `ACCOUNT_ID` with your 12-digit account number — IAM → Dashboard.) All three
+   (Replace `ACCOUNT_ID` with your 12-digit account number — IAM → Dashboard.) All five
    patterns stay scoped to this exact repo — none is a wildcard across repos/orgs — so the
-   trust boundary this step is meant to establish still holds; it's just three legitimate
+   trust boundary this step is meant to establish still holds; it's just five legitimate
    trigger shapes instead of one, in the claim format this repo actually emits.
 5. **GitHub repo** → Settings → Secrets and variables → Actions → **Variables** tab → New
    repository variable:

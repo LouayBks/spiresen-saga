@@ -34,6 +34,12 @@ jobs:
   plan:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    # Deliberately NOT `environment: prod` here, unlike infra-deploy-int.yml's plan
+    # job: prod's Environment has a required-reviewer protection rule, so declaring
+    # it here would pause every PR for manual approval just to compute a plan diff.
+    # int's plan job proves the environment-scoped OIDC claim shape works against
+    # this trust policy without that cost — same mechanism, no need to duplicate the
+    # check somewhere it introduces friction.
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
