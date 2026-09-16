@@ -34,3 +34,21 @@ module "dns" {
     aws.us_east_1 = aws.us_east_1
   }
 }
+
+module "static_site" {
+  source = "../../modules/static-site"
+
+  bucket_name     = var.static_site_bucket_name
+  domain_name     = var.app_domain_name
+  certificate_arn = module.dns.certificate_arn # *.spiresen.com wildcard already covers a one-label subdomain
+  route53_zone_id = module.dns.zone_id
+  tags            = local.tags
+}
+
+module "api" {
+  source = "../../modules/api"
+
+  function_name   = var.api_function_name
+  lambda_zip_path = var.lambda_zip_path
+  tags            = local.tags
+}
