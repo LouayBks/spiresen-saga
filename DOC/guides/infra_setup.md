@@ -6,10 +6,10 @@ Every step here is something only a human can do — account creation, payment, 
 work, and the `terraform apply` calls themselves (Claude never applies, per AW-24). Do these in
 order; several steps are hard prerequisites for the ones after.
 
-What already exists in the repo by the time you start this: `infra/modules/dns`,
-`infra/environments/prod` (region `eu-west-3`, ACM forced to `us-east-1` via a provider alias),
-`infra/bootstrap` (state bucket, no DynamoDB — native S3 locking), and
-`.github/workflows/infra-deploy.yml`.
+What already exists in the repo by the time you start this: `infra/modules/{dns,static-site,api}`,
+`infra/environments/{prod,int}` (region `eu-west-3`, ACM forced to `us-east-1` via a provider
+alias), `infra/bootstrap` (state bucket, no DynamoDB — native S3 locking), and
+`.github/workflows/{infra-deploy,infra-deploy-int,frontend-deploy,frontend-deploy-int}.yml`.
 
 ## 1. AWS account + root security
 
@@ -184,8 +184,11 @@ your step-2 session, if you'd rather not click through it):
    - Audience: `sts.amazonaws.com`
 2. IAM → Roles → Create role → Web identity → pick the provider from step 1, audience
    `sts.amazonaws.com` → name it `spiresen-saga-terraform-apply`.
-3. Attach an inline policy — same scope as step 2's permission set, minus the one-time IAM/OIDC
-   block (CI never needs to create its own provider/role, and never touches IAM at all):
+3. Attach an inline policy — same scope as step 2's permission set, minus the OIDC-provider
+   actions (CI never needs to create/list its own provider — that's a one-time human bootstrap
+   step, not something Terraform running as this role ever does). It **does** need scoped IAM
+   role actions now (see the `iam:*` statement below) — the `api` module has Terraform create
+   the Lambda's own execution role:
    ```json
    {
      "Version": "2012-10-17",
@@ -205,22 +208,38 @@ your step-2 session, if you'd rather not click through it):
        { "Effect": "Allow", "Action": ["dynamodb:*"], "Resource": "*" },
        { "Effect": "Allow", "Action": ["lambda:*"], "Resource": "*" },
        { "Effect": "Allow", "Action": ["apigateway:*"], "Resource": "*" },
-       { "Effect": "Allow", "Action": ["cognito-idp:*", "cognito-identity:*"], "Resource": "*" }
+       { "Effect": "Allow", "Action": ["cognito-idp:*", "cognito-identity:*"], "Resource": "*" },
+       { "Effect": "Allow", "Action": ["iam:*"], "Resource": "arn:aws:iam::*:role/spiresen-saga-*" }
      ]
    }
    ```
-   Same reasoning as step 2 for what's `Resource`-scoped (`s3`) vs. left at `"*"`
-   (everything whose own list/describe calls are account-wide and don't take a resource
-   ARN) — no IAM statement here at all, since this role only ever runs `terraform
-   plan`/`apply` against the stack itself, never manages its own trust policy or other
-   IAM principals.
+   Same reasoning as step 2 for what's `Resource`-scoped (`s3`, `iam`) vs. left at `"*"`
+   (everything whose own list/describe calls are account-wide and don't take a resource ARN).
+   **The `iam:*` statement is new** — the `api` Terraform module (`infra/modules/api`) has
+   Terraform create the Lambda's own execution role, so this role now needs `iam:CreateRole`
+   and friends for anything under the `spiresen-saga-*` prefix. (The original version of this
+   doc said this role "never manages its own trust policy or other IAM principals" — that
+   stopped being true the moment `api` shipped; if you're reading this after checking out an
+   older revision, add this statement before applying anything that touches `api`.)
 4. Edit the role's **Trust relationships** to scope `sub` to this exact repo (a bare wildcard
-   here defeats the point of the trust boundary) — but note it needs *two* patterns, not one:
+   here defeats the point of the trust boundary) — but note it needs *three* patterns, not one:
    `infra-deploy.yml`'s `plan` job assumes this same role on every PR (to comment the Terraform
    diff), and GitHub's OIDC token carries a different `sub` claim per trigger type — a
    `pull_request`-triggered run's token never matches a `ref:refs/heads/main` condition, so
    scoping to only the push-to-main pattern leaves the `plan` job permanently unable to
-   authenticate:
+   authenticate. Same reasoning adds a third pattern for `int`: once `infra-deploy-int.yml`/
+   `frontend-deploy-int.yml` exist (the int/`dev.athar.spiresen.com` deploy target, AW-24), a
+   push-to-`int` run emits `ref:refs/heads/int`, which needs its own entry too.
+
+   **Also — use the immutable `sub` format, not the legacy name-only one.** GitHub switched
+   the *default* subject-claim format on 2026-07-15: repos created on or after that date (this
+   one was created 2026-09-07, so it's affected) emit `repo:OWNER@OWNER-ID/REPO@REPO-ID:...`
+   instead of the older `repo:OWNER/REPO:...`. A trust policy written against the legacy form
+   silently never matches — AWS returns the unhelpful `Not authorized to perform
+   sts:AssumeRoleWithWebIdentity` rather than anything naming the actual claim mismatch. Find
+   your repo's numeric ID via `gh api repos/OWNER/REPO --jq .id` (owner ID is
+   `gh api repos/OWNER/REPO --jq .owner.id`); for this repo that's owner `LouayBks` = 118669726,
+   repo `spiresen-saga` = 1360728038:
    ```json
    {
      "Version": "2012-10-17",
@@ -232,18 +251,19 @@ your step-2 session, if you'd rather not click through it):
          "StringEquals": { "token.actions.githubusercontent.com:aud": "sts.amazonaws.com" },
          "StringLike": {
            "token.actions.githubusercontent.com:sub": [
-             "repo:LouayBks/spiresen-saga:ref:refs/heads/main",
-             "repo:LouayBks/spiresen-saga:pull_request"
+             "repo:LouayBks@118669726/spiresen-saga@1360728038:ref:refs/heads/main",
+             "repo:LouayBks@118669726/spiresen-saga@1360728038:ref:refs/heads/int",
+             "repo:LouayBks@118669726/spiresen-saga@1360728038:pull_request"
            ]
          }
        }
      }]
    }
    ```
-   (Replace `ACCOUNT_ID` with your 12-digit account number — IAM → Dashboard.) Both patterns
-   stay scoped to this exact repo — neither is a wildcard across repos/orgs — so the trust
-   boundary this step is meant to establish still holds; it's just two legitimate trigger
-   shapes instead of one.
+   (Replace `ACCOUNT_ID` with your 12-digit account number — IAM → Dashboard.) All three
+   patterns stay scoped to this exact repo — none is a wildcard across repos/orgs — so the
+   trust boundary this step is meant to establish still holds; it's just three legitimate
+   trigger shapes instead of one, in the claim format this repo actually emits.
 5. **GitHub repo** → Settings → Secrets and variables → Actions → **Variables** tab → New
    repository variable:
    - Name: `AWS_DEPLOY_ROLE_ARN`
@@ -252,16 +272,35 @@ your step-2 session, if you'd rather not click through it):
    add yourself as a required reviewer. This makes `infra-deploy.yml`'s `apply` job (which
    already declares `environment: prod`) pause for your approval on every push-to-`main` apply,
    even though it's already gated behind a human-merged PR.
+7. **Settings → Environments → New environment** named `int` — **no** required reviewer this
+   time (int is the fast-iteration deploy target, AW-24; a human already gates every merge into
+   `int` via required PR review). This environment exists purely so the variables below can be
+   scoped per-environment under the same name (`STATIC_SITE_BUCKET_NAME` etc.) instead of
+   needing `_PROD`/`_INT`-suffixed variable names.
+8. Once `terraform apply` has run at least once for each environment (`infra/environments/prod`
+   and `infra/environments/int`), read its outputs and set two more variables **per
+   environment** (repo → Settings → Environments → `prod`/`int` → environment-level variables,
+   not the repo-level `Variables` tab used for `AWS_DEPLOY_ROLE_ARN`):
+   - `STATIC_SITE_BUCKET_NAME` = `terraform output -raw static_site_bucket_name`
+   - `STATIC_SITE_DISTRIBUTION_ID` = `terraform output -raw static_site_distribution_id`
+
+   These are what `frontend-deploy.yml`/`frontend-deploy-int.yml` sync the compiled Angular
+   bundle to and invalidate after every deploy.
 
 ## 9. Verify the pipeline end to end
 
-1. Open a PR that touches `infra/**` (even a no-op comment change) → confirm the `plan` job runs
-   and comments the Terraform plan on the PR.
-2. Merge it → confirm the `apply` job runs on push to `main`, and (since steps 4-5 already
-   applied everything by hand) shows **no changes** — confirms CI's state matches what you
-   applied locally, not a drifted duplicate.
-3. `terraform plan -input=false` locally, from `infra/environments/prod`, should also show zero
-   diff at this point.
+1. Open a PR that touches `infra/**` (even a no-op comment change) → confirm both `infra-deploy`
+   and `infra-deploy-int`'s `plan` jobs run and each comment their own Terraform plan on the PR.
+2. Merge it into `int` → confirm `infra-deploy-int`'s `apply` job runs unattended on push to
+   `int` (no reviewer pause, per AW-24), then `frontend-deploy-int` once `frontend/**` changes
+   too. Hit `dev.athar.spiresen.com` and the int API's `/health` invoke URL to confirm real
+   traffic.
+3. Promote to `main` → confirm `infra-deploy`'s `apply` job pauses for the `prod` Environment's
+   required reviewer, then `frontend-deploy`. Hit `athar.spiresen.com` and prod's `/health` the
+   same way.
+4. `terraform plan -input=false` locally, from each of `infra/environments/prod` and
+   `infra/environments/int`, should show zero diff once both have been applied — confirms CI's
+   state matches what you applied, not a drifted duplicate.
 
 ## If something's stuck
 
