@@ -36,6 +36,14 @@ jobs:
   plan:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    # environment: int here (not just on apply) is deliberate: GitHub mints a
+    # completely different OIDC sub claim for a job that declares an environment
+    # (environment:int) vs one that doesn't (pull_request) — so without this, plan
+    # never exercises the same auth path apply actually uses, and a trust-policy gap
+    # in that path only surfaces for real once merged. int has no required-reviewer
+    # protection rule, so this adds zero approval friction (unlike prod — see
+    # infra-deploy.yml's plan job, which intentionally does NOT do this).
+    environment: int
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
