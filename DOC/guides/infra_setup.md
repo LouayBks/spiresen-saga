@@ -214,8 +214,13 @@ your step-2 session, if you'd rather not click through it):
    ARN) — no IAM statement here at all, since this role only ever runs `terraform
    plan`/`apply` against the stack itself, never manages its own trust policy or other
    IAM principals.
-4. Edit the role's **Trust relationships** to scope `sub` to this exact repo/branch (a wildcard
-   here defeats the point of the trust boundary):
+4. Edit the role's **Trust relationships** to scope `sub` to this exact repo (a bare wildcard
+   here defeats the point of the trust boundary) — but note it needs *two* patterns, not one:
+   `infra-deploy.yml`'s `plan` job assumes this same role on every PR (to comment the Terraform
+   diff), and GitHub's OIDC token carries a different `sub` claim per trigger type — a
+   `pull_request`-triggered run's token never matches a `ref:refs/heads/main` condition, so
+   scoping to only the push-to-main pattern leaves the `plan` job permanently unable to
+   authenticate:
    ```json
    {
      "Version": "2012-10-17",
@@ -225,12 +230,20 @@ your step-2 session, if you'd rather not click through it):
        "Action": "sts:AssumeRoleWithWebIdentity",
        "Condition": {
          "StringEquals": { "token.actions.githubusercontent.com:aud": "sts.amazonaws.com" },
-         "StringLike": { "token.actions.githubusercontent.com:sub": "repo:LouayBks/spiresen-saga:ref:refs/heads/main" }
+         "StringLike": {
+           "token.actions.githubusercontent.com:sub": [
+             "repo:LouayBks/spiresen-saga:ref:refs/heads/main",
+             "repo:LouayBks/spiresen-saga:pull_request"
+           ]
+         }
        }
      }]
    }
    ```
-   (Replace `ACCOUNT_ID` with your 12-digit account number — IAM → Dashboard.)
+   (Replace `ACCOUNT_ID` with your 12-digit account number — IAM → Dashboard.) Both patterns
+   stay scoped to this exact repo — neither is a wildcard across repos/orgs — so the trust
+   boundary this step is meant to establish still holds; it's just two legitimate trigger
+   shapes instead of one.
 5. **GitHub repo** → Settings → Secrets and variables → Actions → **Variables** tab → New
    repository variable:
    - Name: `AWS_DEPLOY_ROLE_ARN`
