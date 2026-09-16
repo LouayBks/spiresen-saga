@@ -25,18 +25,20 @@ Skip to step 2 if you already have an account you're using for this.
 5. **After this, stop using root.** Everything from here on uses IAM Identity Center (step 2
    below), never the root credentials again.
 
-## 2. IAM Identity Center — for your (and Claude's) local Terraform work
+## 2. IAM Identity Center — for your local Terraform work
 
-Per ADR-005: this is the credential both you and Claude use locally. There's no separate
-"Claude identity" — Claude inherits whatever's active in your shell.
+Per ADR-005 (revised 2026-09-16): this permission set is yours, the admin's. It's scoped to
+the *full* stack named in `application_architecture.md` — Route 53, ACM, S3, CloudFront,
+DynamoDB, Lambda, API Gateway, Cognito — granted now, in one policy, not extended
+ticket-by-ticket as each module gets built. Claude does **not** use this credential; Claude
+gets its own separate read-only identity (setup steps not yet written — tracked as
+follow-up in ADR-005).
 
 1. AWS Console → search **IAM Identity Center** → **Enable** (works standalone, no AWS
    Organizations needed for one account). Confirm the region it asks for — that becomes your
    SSO region, note it down.
 2. **Create a permission set**: Identity Center → Permission sets → Create → Custom permission
-   set → name it `spiresen-infra-admin`. Attach an inline policy (this is broader than
-   `ReadOnlyAccess` because you'll use this same session to run the actual `terraform apply`
-   calls below — CI's separate OIDC role, not this one, handles ongoing automated applies):
+   set → name it `spiresen-infra-admin`. Attach an inline policy:
    ```json
    {
      "Version": "2012-10-17",
@@ -45,22 +47,51 @@ Per ADR-005: this is the credential both you and Claude use locally. There's no 
        {
          "Effect": "Allow",
          "Action": [
-           "acm:RequestCertificate", "acm:DescribeCertificate",
-           "acm:AddTagsToCertificate", "acm:DeleteCertificate",
-           "acm:ListTagsForCertificate"
+           "acm:RequestCertificate", "acm:DescribeCertificate", "acm:ListCertificates",
+           "acm:AddTagsToCertificate", "acm:DeleteCertificate", "acm:ListTagsForCertificate"
          ],
          "Resource": "*"
        },
        { "Effect": "Allow", "Action": ["s3:*"], "Resource": "arn:aws:s3:::spiresen-saga-*" },
        { "Effect": "Allow", "Action": ["s3:ListAllMyBuckets", "s3:CreateBucket"], "Resource": "*" },
-       { "Effect": "Allow", "Action": ["iam:CreateOpenIDConnectProvider", "iam:GetOpenIDConnectProvider",
-           "iam:CreateRole", "iam:GetRole", "iam:PutRolePolicy", "iam:AttachRolePolicy"],
-         "Resource": "*" }
+       { "Effect": "Allow", "Action": ["cloudfront:*"], "Resource": "*" },
+       { "Effect": "Allow", "Action": ["dynamodb:*"], "Resource": "*" },
+       { "Effect": "Allow", "Action": ["lambda:*"], "Resource": "*" },
+       { "Effect": "Allow", "Action": ["apigateway:*"], "Resource": "*" },
+       { "Effect": "Allow", "Action": ["cognito-idp:*", "cognito-identity:*"], "Resource": "*" },
+       { "Effect": "Allow", "Action": ["iam:*"], "Resource": "arn:aws:iam::*:role/spiresen-saga-*" },
+       { "Effect": "Allow", "Action": ["iam:*"], "Resource": "arn:aws:iam::*:oidc-provider/*" },
+       { "Effect": "Allow", "Action": ["iam:Get*", "iam:List*"], "Resource": "*" }
      ]
    }
    ```
-   (The last block is only needed once, for step 4's OIDC provider/role — you can remove it
-   afterward if you want the permission set to stay minimal day-to-day.)
+   This is the full baseline for this project's known stack, per ADR-005's 2026-09-16
+   revision — you shouldn't need to come back and hand-edit this policy again for services
+   already named in `application_architecture.md` (Lambda/DynamoDB/API Gateway/Cognito
+   included, even though the `api` module isn't built yet). Only a genuinely new service
+   (outside that doc) should require an extension later.
+
+   `dynamodb`/`lambda`/`apigateway`/`cloudfront`/`cognito-idp`/`cognito-identity` are left
+   at `Resource: "*"` deliberately, not narrowed to a `spiresen-saga-*` name prefix like the
+   S3 block: several of their own list/describe calls (`ListTables`, `ListFunctions`,
+   `GetRestApis`, and so on) are account-wide operations that don't accept a resource ARN at
+   all, so scoping the write actions narrowly while those list calls need `"*"` just
+   reproduces an access-denied loop one level down. Since this is a single-project AWS
+   account, the practical exposure of `"*"` here is low.
+
+   IAM stays the one service scoped by resource rather than left at `iam:*`/`"*"` outright —
+   a mistake there could reach outside this project (other IAM users/roles/policies on the
+   account) in a way a Lambda or DynamoDB mistake can't. Mutating IAM actions
+   (create/put/attach/detach/update/delete/tag/untag/pass-role) are scoped to
+   `spiresen-saga-*` roles and the OIDC-provider ARN pattern. Read actions
+   (`iam:Get*`/`iam:List*` — `ListPolicies`, `ListOpenIDConnectProviders`,
+   `ListSAMLProviders`, `ListRoles`, and everything else the console's various wizards
+   call to populate dropdowns or check for existing resources) are granted at `"*"` as one
+   blanket statement instead of enumerated one action at a time: many of IAM's own List/Get
+   calls don't support resource-level scoping at all (the API has no resource ARN to scope
+   them to), so narrowing them individually only ever produces another single
+   `AccessDenied` on the next console click, never converges, and stays read-only the whole
+   time regardless.
 3. **Session duration**: on the same permission set, Session settings → set the "session
    duration" for CLI/SDK sessions. Default is 8 hours (re-login every day you use it); it can go
    up to 90 days. Pick whatever friction level you're comfortable with — there's no "correct"
@@ -85,8 +116,9 @@ Per ADR-005: this is the credential both you and Claude use locally. There's no 
    export AWS_PROFILE=spiresen-dev
    aws sts get-caller-identity
    ```
-   Expect a JSON blob with your `Account` and `UserId` — no error. This is the credential both
-   you and Claude (via this same shell) now use for every `terraform plan`/`apply` below.
+   Expect a JSON blob with your `Account` and `UserId` — no error. This is your credential for
+   every `terraform plan`/`apply` below. (Claude uses a separate read-only identity per
+   ADR-005 — not this profile; that identity's setup steps aren't written yet.)
 
 ## 3. Buy the domain (Namecheap)
 
@@ -153,7 +185,7 @@ your step-2 session, if you'd rather not click through it):
 2. IAM → Roles → Create role → Web identity → pick the provider from step 1, audience
    `sts.amazonaws.com` → name it `spiresen-saga-terraform-apply`.
 3. Attach an inline policy — same scope as step 2's permission set, minus the one-time IAM/OIDC
-   block (CI never needs to create its own provider/role):
+   block (CI never needs to create its own provider/role, and never touches IAM at all):
    ```json
    {
      "Version": "2012-10-17",
@@ -162,16 +194,26 @@ your step-2 session, if you'd rather not click through it):
        {
          "Effect": "Allow",
          "Action": [
-           "acm:RequestCertificate", "acm:DescribeCertificate",
-           "acm:AddTagsToCertificate", "acm:DeleteCertificate",
-           "acm:ListTagsForCertificate"
+           "acm:RequestCertificate", "acm:DescribeCertificate", "acm:ListCertificates",
+           "acm:AddTagsToCertificate", "acm:DeleteCertificate", "acm:ListTagsForCertificate"
          ],
          "Resource": "*"
        },
-       { "Effect": "Allow", "Action": ["s3:*"], "Resource": "arn:aws:s3:::spiresen-saga-*" }
+       { "Effect": "Allow", "Action": ["s3:*"], "Resource": "arn:aws:s3:::spiresen-saga-*" },
+       { "Effect": "Allow", "Action": ["s3:ListAllMyBuckets", "s3:CreateBucket"], "Resource": "*" },
+       { "Effect": "Allow", "Action": ["cloudfront:*"], "Resource": "*" },
+       { "Effect": "Allow", "Action": ["dynamodb:*"], "Resource": "*" },
+       { "Effect": "Allow", "Action": ["lambda:*"], "Resource": "*" },
+       { "Effect": "Allow", "Action": ["apigateway:*"], "Resource": "*" },
+       { "Effect": "Allow", "Action": ["cognito-idp:*", "cognito-identity:*"], "Resource": "*" }
      ]
    }
    ```
+   Same reasoning as step 2 for what's `Resource`-scoped (`s3`) vs. left at `"*"`
+   (everything whose own list/describe calls are account-wide and don't take a resource
+   ARN) — no IAM statement here at all, since this role only ever runs `terraform
+   plan`/`apply` against the stack itself, never manages its own trust policy or other
+   IAM principals.
 4. Edit the role's **Trust relationships** to scope `sub` to this exact repo/branch (a wildcard
    here defeats the point of the trust boundary):
    ```json
