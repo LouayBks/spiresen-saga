@@ -21,6 +21,8 @@ Decide how media (image/video) and article content actually get created and edit
 - **Editor library candidates** (for the implementation ticket's own feasibility check, not decided here): a plain `<textarea>` paired with a lightweight markdown-render library (e.g. `marked` or Angular's `ngx-markdown`) for the preview pane — no WYSIWYG/ProseMirror-class dependency needed for a markdown-source model.
 - **`note`-kind editing: plain text fields (title, body, date), not markdown.** Unlike an article, a note is meant to be a short, scannable fact (`boxes-plan.md` §4: "a single skill, tool, or one-line fact" at S tier) — markdown source/preview overhead isn't warranted for it. `date` is a free-text short string, not a strict date type — the mockup's own sample data uses year-only precision ("2026," "2025"), so the field shouldn't force day-level granularity nobody asked for.
 - **Note body length is a soft guideline, not a hard limit — but a real one.** A `.box`'s CSS is `overflow: hidden` with no internal scroll (per the mockup) — content that doesn't fit its tier's fixed footprint is silently clipped, not reflowed. The editor should warn (not block) when body text is likely to overflow its node's current tier, since the fix is usually "pick a bigger tier" (`box-sizing.md`), not "shorten the text."
+- **New `annotation` kind: a single short-text field, nothing else — for explaining, not informing.** The existing three kinds (`note`/`media`/`group`) are all content-bearing; nothing in the model covers a low-density visual explainer (a caption, a label for a cluster, a short aside). `annotation` fills that: one `text: string` field, no title/body split (unlike `note`), no date, no article/media content. Reuses the general `note`/`urls` attachable fields (CON-5) and the tier system unchanged — no special-casing needed there.
+- **An `annotation` node renders without a theme dot.** The theme dot signals thematic categorization for real content (`boxes-plan.md` §5's "color is a signal, not decoration"); an annotation isn't part of that categorization system, so giving it a dot would misrepresent it as a content item. This is the functional reason the kind exists at all — visually distinguishable as "not a content item" — exact chrome styling (border weight, dashing) is left to implementation, not decided here.
 
 ## Expected behaviors (`BHV-*`)
 
@@ -33,6 +35,8 @@ Decide how media (image/video) and article content actually get created and edit
 | BHV-5 | WHEN the owner saves an edit to an article's or media node's content, THE backend SHALL overwrite the existing `DETAILS` record with no retained prior version. | ✅ — integration test: edit twice, assert only the latest body is retrievable | |
 | BHV-6 | WHEN the owner edits a `note`-kind node, THE editor SHALL present plain text fields for title, body, and date — no markdown source/preview pane. | ✅ — component test: open a `note` node's editor, assert no markdown preview pane renders | |
 | BHV-7 | IF a note's body text is likely to overflow its node's current tier footprint, THEN THE editor SHALL show a non-blocking warning suggesting a larger tier. | ✅ — component test: type body text exceeding the S-tier footprint's measured capacity, assert a warning renders and save is still allowed | Warning, not validation error — CON-8 confirms the save isn't rejected. |
+| BHV-8 | WHEN the owner edits an `annotation`-kind node, THE editor SHALL present exactly one short-text field, with no title/body split, no date, and no markdown pane. | ✅ — component test: open an `annotation` node's editor, assert exactly one text input renders | |
+| BHV-9 | THE canvas SHALL render an `annotation`-kind node without a theme dot, regardless of whether it carries a `note`/`urls` value. | ✅ — snapshot test: render an `annotation` node, assert no `.dot` element is present | |
 
 ## Constraints (`CON-*`)
 
@@ -46,6 +50,8 @@ Decide how media (image/video) and article content actually get created and edit
 | CON-6 | Content edits MUST overwrite in place — no version-history record is created or retained. | States the no-versioning decision as a binding constraint, not just a design note. |
 | CON-7 | A `note`-kind node's `date` field MUST be a free-text short string, not a strict date type — MUST NOT require day-level precision. | Matches the mockup's own year-only sample data. |
 | CON-8 | An overflow warning on note body length MUST NOT block saving. | Distinguishes a soft authoring aid from an enforced constraint — the owner may accept clipped text deliberately. |
+| CON-9 | An `annotation`-kind node's content MUST be exactly one `text: string` field — MUST NOT gain a title/body split, date, or article/media content. | Keeps the kind meaningfully distinct from `note`, not a near-duplicate. |
+| CON-10 | An `annotation`-kind node MUST NOT render a theme dot. | The functional signal that distinguishes it from content-bearing kinds. |
 
 ## Open questions
 

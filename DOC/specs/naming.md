@@ -24,7 +24,7 @@ Settle which name is used where (product brand vs. schema entities), and broaden
 | Individual canvas item (entity) | Box | **Node** | Schema/code/API: DynamoDB key prefix, id namespacing, all field names (`kind`, `tier`, `note`, `urls`, `positions`, …). |
 | Link | Link | Link (unchanged) | |
 | View (≤3 per Map, `alternate-views.md`) | View | View (unchanged) | |
-| Node kinds | `note` / `media` / `group` | unchanged | Content-type descriptors, not entity/brand terms. |
+| Node kinds | `note` / `media` / `group` | `note` / `media` / `group` / **`annotation`** (new — see `content-authoring.md`) | Content-type descriptors, not entity/brand terms. |
 | Link types | `theme` / `timeline` / `soft` | unchanged | |
 
 ## Schema rename (for `application_architecture.md` and the other three specs)

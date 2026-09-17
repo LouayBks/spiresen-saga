@@ -30,7 +30,7 @@ Decide how a node's size communicates the emphasis/importance of the idea it hol
 |---|---|---|
 | CON-1 | A Node's `tier` MUST be identical across every View of its Map — tier does not vary per view. | Owning decision for this field; `alternate-views.md` cites this row rather than deciding it independently. |
 | CON-2 | A Node's `tier` MUST be one of exactly three enumerated values (`S`, `M`, `L`) — no free-form or numeric size field. | Flagged for #36's `Node` schema. |
-| CON-3 | A Node's `tier` MUST NOT be inferred automatically from its `kind` (`note`/`media`/`group`) or content length — it is always an explicit owner choice. | `kind` and `tier` stay orthogonal, per the existing schema note in `application_architecture.md`. |
+| CON-3 | A Node's `tier` MUST NOT be inferred automatically from its `kind` (`note`/`media`/`group`/`annotation`) or content length — it is always an explicit owner choice. | `kind` and `tier` stay orthogonal, per the existing schema note in `application_architecture.md`. |
 | CON-4 | The editing UI MUST NOT expose drag-to-resize handles on a node. | Direct consequence of rejecting free resize; keeps the picker as the only path to changing tier. |
 
 ## Open questions
