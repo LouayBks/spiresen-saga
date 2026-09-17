@@ -1,0 +1,55 @@
+name: infra-deploy-dev
+
+# AW-24 (DOC/architecture/branching_strategy.md): dev is a deliberate, bounded
+# exception to the "never from a dev/* branch" rule that governs prod/int — it
+# exists specifically to surface OIDC/IAM/deploy problems on every push, before
+# code ever reaches the int PR stage. No plan job: every push already gets a real
+# apply, so there's no separate preview step to design — the push IS the check.
+# One shared environment (last-push-wins, not per-branch) — concurrency below
+# queues overlapping pushes instead of racing for the state lock or the live
+# hostname.
+
+on:
+  push:
+    branches: ["dev/**"]
+    paths:
+      - "infra/**"
+      - "backend/**"
+      - ".github/workflows/infra-deploy-dev.yml"
+
+concurrency:
+  group: infra-deploy-dev
+  cancel-in-progress: false
+
+permissions:
+  id-token: write # required for GitHub OIDC -> AWS role assumption
+  contents: read
+
+defaults:
+  run:
+    working-directory: infra/environments/dev
+
+env:
+  TF_VERSION: "1.11.2"
+  AWS_REGION: "eu-west-3" # stack's primary region (Paris); ACM's forced us-east-1 is handled inside Terraform via a provider alias, not here
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    environment: dev # unprotected — exists for variable scoping (STATIC_SITE_BUCKET_NAME etc.), not a reviewer gate
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: ./build_lambda.sh
+        working-directory: backend
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - run: terraform init -input=false
+      - run: terraform apply -input=false -auto-approve

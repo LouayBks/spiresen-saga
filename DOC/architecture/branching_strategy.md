@@ -119,10 +119,11 @@ routine. A human always executes the apply, either by merging to a deploy-target
 (triggering CI/CD) or running Terraform locally. This supersedes ADR-004 Part 3's "routine
 changes may apply directly" — see the open item at the top of this doc.
 
-**Two deploy targets exist as of the minimal-deploy-pipeline work (2026-09-16):**
+**Three deploy targets exist as of the third-environment work (2026-09-16/17):**
 `infra-deploy.yml`/`frontend-deploy.yml` (**prod**, `athar.spiresen.com`) trigger only on push
 to `main`, gated behind the "prod" GitHub Environment's required reviewer.
-`infra-deploy-int.yml`/`frontend-deploy-int.yml` (**int**, `dev.athar.spiresen.com`) trigger
+`infra-deploy-int.yml`/`frontend-deploy-int.yml` (**int**, `int.athar.spiresen.com` — renamed
+from `dev.athar.spiresen.com` to free that hostname for the new `dev` target below) trigger
 only on push to `int`, deliberately **not** reviewer-gated — int is the fast-iteration
 environment, and a human still approves every merge into `int` via required PR review (AW-25),
 so the deploy itself runs unattended the same way `backend-ci`/`frontend-ci` already do on
@@ -130,11 +131,25 @@ so the deploy itself runs unattended the same way `backend-ci`/`frontend-ci` alr
 when a single deploy target existed) — not a loosening of it: **the constraint below is per
 deploy target, not "main only."**
 
-For **each** deploy target: no `workflow_dispatch` path that Claude can invoke, no
-deploy-on-PR, no deploy from any `dev/*` branch — a target's auto-apply trigger is exactly the
-one branch that owns it (`main`→prod, `int`→int), nothing else.
+For **prod and int**: no `workflow_dispatch` path that Claude can invoke, no deploy-on-PR, no
+deploy from any `dev/*` branch — each target's auto-apply trigger is exactly the one branch
+that owns it (`main`→prod, `int`→int), nothing else.
 
-Both AWS environments currently share a single AWS account and one CI OIDC role
+**`dev` (`dev.athar.spiresen.com`) is a deliberate, bounded exception to the "no deploy from
+any `dev/*` branch" clause above, and only to that clause.** `infra-deploy-dev.yml`/
+`frontend-deploy-dev.yml` trigger on a push to *any* `dev/**` branch — no PR gate, no
+required-reviewer Environment protection, by design: `dev` exists specifically to surface real
+OIDC/IAM/deploy failures before a developer ever opens the `int` PR, not to gate promotion (a
+prior `int`-merge broke this exact way — a trust-policy gap that a PR's `plan` job couldn't
+have caught, since `plan` and the real `apply` authenticate with structurally different OIDC
+token shapes; see `infra_setup.md` step 4's "fifth gotcha"). This does not loosen `main` or
+`int`'s rule: `workflow_dispatch` stays forbidden for all three targets, and `main`/`int` remain
+each the sole trigger for their own target. `dev` is one shared, last-push-wins environment
+(not per-branch/per-actor isolated) — a `concurrency:` group on both workflows queues
+overlapping pushes from different `dev/*` branches rather than racing for the state lock or the
+live hostname, but does not give any branch its own isolated deployment.
+
+All three AWS environments currently share a single AWS account and one CI OIDC role
 (differentiated only by resource naming and separate Terraform state, not by a credential
 boundary) — fully separate per-environment AWS identity (a second account, its own OIDC trust
 root) is a known future item, not yet built (see ADR-005).
@@ -160,6 +175,16 @@ predate this convention — grandfathered, not renamed.
 Claude opens a bug ticket (`gh issue create`) describing it alongside the draft PR, falling back
 to describing it in the PR body if issue creation isn't possible (permissions, `gh` unavailable)
 — never silently fixing without a paper trail.
+
+**Interaction with `dev` (AW-24):** this PR-gate guarantee covers `int`/`main` only. `dev` is
+deliberately outside it — a human's *push* (not a review, not a merge) to any `dev/*` branch is
+sufficient to trigger a real `apply` against the `dev` environment, regardless of whether the
+pushed commits are Claude-authored. Claude's own capability is unchanged (no push access at
+all, in any sandbox this project has used so far) — but before `dev` existed, "no Claude commit
+reaches anything live without a human-approved PR merge" held for every deploy target, because
+`int`/`main` were the only ones. That's no longer true project-wide, only true for `int`/`main`
+specifically. Worth remembering when reasoning about what "reviewed before it's live" actually
+covers.
 
 ## AW-26 — Claude's commits are attributed as Claude's, not the human's
 
