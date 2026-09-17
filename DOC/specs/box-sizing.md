@@ -28,7 +28,7 @@ Decide how a box's size communicates the emphasis/importance of the idea it hold
 
 | ID | Statement | Notes |
 |---|---|---|
-| CON-1 | A Box's `tier` MUST be identical across every View of its Saga — tier does not vary per view. | Owning decision for this field; `alternate-views.md` cites this row rather than deciding it independently. |
+| CON-1 | A Box's `tier` MUST be identical across every View of its Map — tier does not vary per view. | Owning decision for this field; `alternate-views.md` cites this row rather than deciding it independently. Entity renamed Saga→Map per `naming.md`'s 2026-09-18 revision. |
 | CON-2 | A Box's `tier` MUST be one of exactly three enumerated values (`S`, `M`, `L`) — no free-form or numeric size field. | Flagged for #36's `Box` schema. |
 | CON-3 | A Box's `tier` MUST NOT be inferred automatically from its `kind` (`note`/`media`/`group`) or content length — it is always an explicit owner choice. | `kind` and `tier` stay orthogonal, per the existing schema note in `application_architecture.md`. |
 | CON-4 | The editing UI MUST NOT expose drag-to-resize handles on a box. | Direct consequence of rejecting free resize; keeps the picker as the only path to changing tier. |
