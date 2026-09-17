@@ -34,8 +34,8 @@ The static part is the *compiled* Angular bundle (JS/CSS/HTML) — that's what s
 ## Auth
 
 - Cognito User Pool, Google as the identity provider (built-in, no shim needed). This part is unchanged by multi-tenancy — Google SSO authenticates *a* user; it says nothing about which Sagas they can touch.
-- Read access to a public Saga's content is public (no auth needed to view). Whether every Saga is public, or a Saga can be private/unlisted, is an open question — see `HANDOFF.md` (not yet created; planned as the concrete implementation task list once this work actually starts — see the note at the bottom of this section).
-- Write access is authorization, not authentication, and it now happens at the **Saga** level, not via a single global allowlist. See "Sagas: multi-tenancy" below — the old single-admin allowlist (`ALLOWED_WRITER_SUBS`) was a placeholder for this and is being replaced as part of the current implementation task (see `HANDOFF.md`, not yet created).
+- Read access to a public Saga's content is public (no auth needed to view). Whether every Saga is public, or a Saga can be private/unlisted, is an open question (see "Open items / TBD" below).
+- Write access is authorization, not authentication, and it now happens at the **Saga** level, not via a single global allowlist. See "Sagas: multi-tenancy" below — the old single-admin allowlist (`ALLOWED_WRITER_SUBS`) was a placeholder for this and is being replaced as part of the ongoing Saga/multi-tenancy implementation work.
 
 ## DynamoDB schema (single-table)
 
@@ -78,7 +78,7 @@ Everything from `PK: BOX#{boxId}` downward is unchanged — a Saga simply replac
 
 **Content records need to carry their Saga too:** an `ARTICLE#{id}` / `PRESENTATION#{id}` / `DESIGN#{id}` `DETAILS` record should store a `sagaId` attribute at creation time, for the same reason — so a write to that content can be authorized against Saga membership without an extra tree walk.
 
-Concrete implementation task list, open questions, and which files to touch will live in `HANDOFF.md` — **not yet created**, since the Saga/multi-tenancy schema work itself hasn't started (#9 stood up the bare FastAPI/Angular scaffold, no DynamoDB code yet); that file is meant to be the one handed to a coding agent once it exists, this section is background for *why*, not a step-by-step. (An earlier `draft/` folder was a throwaway POC used to validate the stack choice before any of this schema work, since deleted — not a precursor to `HANDOFF.md`.)
+The Saga/multi-tenancy schema work itself hasn't started (#9 stood up the bare FastAPI/Angular scaffold, no DynamoDB code yet) — this section is background for *why* the schema looks this way, not a step-by-step. Concrete implementation planning happens via the same ticket/spec workflow as the rest of the backlog (`DOC/specs/*.md`, tracked from issue #22), not a separate handoff document. (An earlier `draft/` folder was a throwaway POC used to validate the stack choice before any of this schema work, since deleted.)
 
 ## Boxes product surface: content types, links, and the group-nesting exception
 
@@ -124,4 +124,4 @@ This is the *first* domain under the Spiresen umbrella — treat it as its own r
 - Whether the API sits behind its own CloudFront distribution or is called directly via the API Gateway invoke URL (custom domain on API Gateway is the cleaner option now that the domain is settled).
 - Angular CDK drag-drop wiring for arbitrarily nested boxes (recursive component).
 - Whether future projects live as `*.spiresen.com` subdomains or get entirely separate domains — decide before the second project starts, since it changes whether the wildcard ACM cert here gets reused.
-- The multi-tenancy questions listed above (can a user have more than one Saga, is there still a platform-admin role distinct from Saga ownership, can Sagas be private) — to be carried into `HANDOFF.md` once that file exists.
+- The multi-tenancy questions listed above (can a user have more than one Saga, is there still a platform-admin role distinct from Saga ownership, can Sagas be private) — still open, to be resolved via the ticket/spec workflow as that work is picked up.

@@ -1,6 +1,6 @@
 # Spec: Naming & framing (#31)
 
-Format per `DOC/templates/spec_design_template.md` (ADR-006). Reconciles the app's public/internal terminology and removes the stale `HANDOFF.md` pointer, before the other Stage-A specs (`box-sizing.md`, `content-authoring.md`, `alternate-views.md` — filenames kept as topic labels tied to their ticket numbers, not renamed to match the entity term below) harden a term that has to be unwound later — this spec is a dependency of those three, not overlapping content with them (it settles words; they settle behavior/schema). All three have been updated to match this revision's rename (see their own diffs).
+Format per `DOC/templates/spec_design_template.md` (ADR-006). Reconciles the app's public/internal terminology, before the other Stage-A specs (`box-sizing.md`, `content-authoring.md`, `alternate-views.md` — filenames kept as topic labels tied to their ticket numbers, not renamed to match the entity term below) harden a term that has to be unwound later — this spec is a dependency of those three, not overlapping content with them (it settles words; they settle behavior/schema). All three have been updated to match this revision's rename (see their own diffs).
 
 **Revision note (2026-09-18, part 1):** this spec inverts its own first-draft naming. The first draft kept "Saga" as the internal/schema term and "Athar" as the public brand. That's now reversed: **Athar is dropped** (already in use elsewhere, so it's off the table, not a live candidate), and **the public brand reverts to "Saga," including domain names** — but only for now, since a brand name has already had to move once. Because of that instability, the *data model* is deliberately decoupled from whatever the current brand word is: the entity schema uses an agnostic term (**Map**), not "Saga," so a future brand change again doesn't force a second schema migration. Two of the first draft's open questions (the exact UI replacement word for "Saga," and whether the tagline needs revisiting) are dropped as non-binding — the mockup's own copy was never authoritative, not worth debating.
 
@@ -8,12 +8,12 @@ Format per `DOC/templates/spec_design_template.md` (ADR-006). Reconciles the app
 
 ## Objective
 
-Settle which name is used where (product brand vs. schema entities), broaden the product's framing beyond "recruiter portfolio," and retire the dead `HANDOFF.md` pointer — before any UI copy or schema-facing doc locks in inconsistent language.
+Settle which name is used where (product brand vs. schema entities), and broaden the product's framing beyond "recruiter portfolio" — before any UI copy or schema-facing doc locks in inconsistent language.
 
 ## Context
 
 - Ticket: #31.
-- Updates once accepted: `application_architecture.md`'s "Naming" section, schema section (every `SAGA#`/`{sagaId}` and `BOX#`/`{boxId}` occurrence), and `HANDOFF.md` reference; `boxes-plan.md`'s framing (§1) and data-model references; domain/DNS/ACM/CloudFront config (`infra/environments/*`) — flagged separately below since that's infra work, not a doc change, and out of this ticket's scope (tracked as #42, deferred until the first features ship).
+- Updates once accepted: `application_architecture.md`'s "Naming" section and schema section (every `SAGA#`/`{sagaId}` and `BOX#`/`{boxId}` occurrence); `boxes-plan.md`'s framing (§1) and data-model references; domain/DNS/ACM/CloudFront config (`infra/environments/*`) — flagged separately below since that's infra work, not a doc change, and out of this ticket's scope (tracked as #42, deferred until the first features ship).
 
 ## Naming table — all identified elements
 
@@ -45,7 +45,6 @@ Settle which name is used where (product brand vs. schema entities), broaden the
 - **Node** is the schema/entity term for what was called "Box" — the individual item placed on the canvas (a note, a media item, a group). Used the same way Map is: code, keys, API field names, id namespacing.
 - The UI/marketing feature name ("Boxes," the mockup's own branding) is **out of this spec's scope** — a minor detail, not redecided here in either direction.
 - **Framing** broadens from "recruiter portfolio" to "a canvas for visualizing pedagogic material or topics" generally — a recruiter-facing arrangement becomes one example Map among others (the mockup's existing sample data needs no change; only marketing/README-level framing text does).
-- `HANDOFF.md` is retired as a **dead reference**, not recreated: it was the one-time Claude Cowork → Claude Code phase handoff, not a living task list. `application_architecture.md`'s pointer to it is removed and replaced with a one-line historical note. Unaffected by this revision.
 - **Exact mockup copy (nav label wording, tagline) is explicitly non-binding** — the mockup's specific phrases were drafting scaffolding, not requirements; this spec settles the structural naming, not the exact prose. No further debate tracked on this.
 
 ## Expected behaviors (`BHV-*`)
@@ -63,8 +62,7 @@ Settle which name is used where (product brand vs. schema entities), broaden the
 | CON-2 | The product/brand name MUST be "Saga," including domain names — reversing the prior "Athar" decision. Actually changing `athar.spiresen.com` → a Saga-based domain is an **infra change (DNS/ACM/CloudFront), not a doc change**, and is out of this docs-only ticket's scope — tracked separately as #42, **deferred until the first features ship**, not immediate follow-up work. | Athar is dropped as a candidate entirely (already in use elsewhere), not merely deprioritized. |
 | CON-3 | DynamoDB key names, code identifiers, and API field names for the individual canvas item MUST use "Node"/`NODE#`, MUST NOT use "Box"/`BOX#`. | See Schema rename table above. |
 | CON-4 | UI copy referring to an individual collection MUST use "Map," MUST NOT use "Saga" as a countable/per-item noun — "Saga" is reserved for the product name only, never pluralized or used as "a Saga." | Prevents the exact ambiguity the first draft had (one word serving as both brand and entity name). |
-| CON-5 | `application_architecture.md` MUST NOT reference `HANDOFF.md` as a file to be created or maintained — only, if mentioned at all, as deprecated history. | Resolves the stale pointer named in ticket #31's context; unaffected by the rename. |
-| CON-6 | Marketing/framing copy (landing page, README, `boxes-plan.md` §1) MUST present the product as a general tool for visualizing pedagogic material or topics, not exclusively a recruiter-facing CV substitute. | The sample "For recruiters" Map in the mockup stays as one example dataset — this constrains framing copy, not sample data. |
+| CON-5 | Marketing/framing copy (landing page, README, `boxes-plan.md` §1) MUST present the product as a general tool for visualizing pedagogic material or topics, not exclusively a recruiter-facing CV substitute. | The sample "For recruiters" Map in the mockup stays as one example dataset — this constrains framing copy, not sample data. |
 
 ## Open questions
 
