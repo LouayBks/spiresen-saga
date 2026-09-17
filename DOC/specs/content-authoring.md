@@ -4,7 +4,7 @@ Format per `DOC/templates/spec_design_template.md` (ADR-006). Owns article/media
 
 ## Objective
 
-Decide how media (image/video) and article content actually get created and edited — named in ticket #33 as the hardest piece, particularly the article editor, which risks becoming a from-scratch rich-text build with no external reference to lean on.
+Decide how media (image/video) and article content actually get created and edited — named in ticket #33 as the hardest piece, particularly the article editor, which risks becoming a from-scratch rich-text build with no external reference to lean on. Also closes a smaller gap found later: the plain `note`-kind's own title/body/date fields were never given an authoring flow anywhere else, since #33's own title emphasized media/article as the hard part — this spec is the natural (only) home for it.
 
 ## Context
 
@@ -19,6 +19,8 @@ Decide how media (image/video) and article content actually get created and edit
 - **Notes and URLs are their own fields on `Node`, independent of `kind`.** Per the correction that a node "can contain other nodes, articles, videos, or images with notes, urls" — a note and a list of URLs can be attached to *any* node regardless of its `kind` (a `media` node can carry a note; a `group` node can carry a reference URL), not folded into the `note`-kind's own `body` field. `Node` gains `note?: string` and `urls?: [{url, label}]`, both optional, orthogonal to `kind` and `tier` the same way those two already are to each other.
 - **No content versioning — always-overwrite on edit.** Matches `application_architecture.md`'s stated goal ("cheap to run, low maintenance, fast to build"); version history is real scope, deliberately deferred, not an oversight.
 - **Editor library candidates** (for the implementation ticket's own feasibility check, not decided here): a plain `<textarea>` paired with a lightweight markdown-render library (e.g. `marked` or Angular's `ngx-markdown`) for the preview pane — no WYSIWYG/ProseMirror-class dependency needed for a markdown-source model.
+- **`note`-kind editing: plain text fields (title, body, date), not markdown.** Unlike an article, a note is meant to be a short, scannable fact (`boxes-plan.md` §4: "a single skill, tool, or one-line fact" at S tier) — markdown source/preview overhead isn't warranted for it. `date` is a free-text short string, not a strict date type — the mockup's own sample data uses year-only precision ("2026," "2025"), so the field shouldn't force day-level granularity nobody asked for.
+- **Note body length is a soft guideline, not a hard limit — but a real one.** A `.box`'s CSS is `overflow: hidden` with no internal scroll (per the mockup) — content that doesn't fit its tier's fixed footprint is silently clipped, not reflowed. The editor should warn (not block) when body text is likely to overflow its node's current tier, since the fix is usually "pick a bigger tier" (`box-sizing.md`), not "shorten the text."
 
 ## Expected behaviors (`BHV-*`)
 
@@ -29,6 +31,8 @@ Decide how media (image/video) and article content actually get created and edit
 | BHV-3 | IF a selected file exceeds the size/type limit (CON-1/CON-2), THEN THE upload UI SHALL reject it client-side before requesting a presigned URL. | ✅ — unit test with an oversized/wrong-type file asserts no presign request fires | Client-side check is a UX courtesy; CON-3 covers the enforced/authoritative boundary. |
 | BHV-4 | WHEN the owner attaches a note or a URL to any node, THE node SHALL persist it regardless of the node's `kind`. | ✅ — CRUD test attaching a note to a `media` node and a URL to a `group` node, asserting both persist | |
 | BHV-5 | WHEN the owner saves an edit to an article's or media node's content, THE backend SHALL overwrite the existing `DETAILS` record with no retained prior version. | ✅ — integration test: edit twice, assert only the latest body is retrievable | |
+| BHV-6 | WHEN the owner edits a `note`-kind node, THE editor SHALL present plain text fields for title, body, and date — no markdown source/preview pane. | ✅ — component test: open a `note` node's editor, assert no markdown preview pane renders | |
+| BHV-7 | IF a note's body text is likely to overflow its node's current tier footprint, THEN THE editor SHALL show a non-blocking warning suggesting a larger tier. | ✅ — component test: type body text exceeding the S-tier footprint's measured capacity, assert a warning renders and save is still allowed | Warning, not validation error — CON-8 confirms the save isn't rejected. |
 
 ## Constraints (`CON-*`)
 
@@ -40,6 +44,8 @@ Decide how media (image/video) and article content actually get created and edit
 | CON-4 | Article body content MUST be stored as plain markdown text, not a proprietary block/rich-text JSON format. | Keeps the door open to swapping the render library later without a data migration. |
 | CON-5 | `Node.note` and `Node.urls` MUST be optional and MUST NOT be restricted to any particular `kind`. | |
 | CON-6 | Content edits MUST overwrite in place — no version-history record is created or retained. | States the no-versioning decision as a binding constraint, not just a design note. |
+| CON-7 | A `note`-kind node's `date` field MUST be a free-text short string, not a strict date type — MUST NOT require day-level precision. | Matches the mockup's own year-only sample data. |
+| CON-8 | An overflow warning on note body length MUST NOT block saving. | Distinguishes a soft authoring aid from an enforced constraint — the owner may accept clipped text deliberately. |
 
 ## Open questions
 
