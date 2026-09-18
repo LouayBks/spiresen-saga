@@ -22,9 +22,11 @@ Decided in `ADR-006`, scored against Gherkin/BDD, a formal SRS (IEEE 29148/Voler
   - State-driven: `WHILE <state>, THE <system> SHALL <response>`
   - Optional feature: `WHERE <feature is present>, THE <system> SHALL <response>`
   - Unwanted behavior: `IF <trigger>, THEN THE <system> SHALL <response>`
-- **Constraints (`CON-*`)** — one row per constraint, using RFC 2119 keywords, for boundaries that aren't themselves a trigger→response behavior (data-model rules, non-functional limits, explicit non-goals, cost/perf ceilings). No Testability check column — a constraint is a standing boundary, not a single triggerable scenario; it gets verified by whatever tests exercise the behaviors that must respect it, not by a test of its own.
+- **Constraints (`CON-*`)** — one row per constraint, using RFC 2119 keywords, for boundaries that aren't themselves a trigger→response behavior (domain-model rules, non-functional limits, explicit non-goals, cost/perf ceilings). No Testability check column — a constraint is a standing boundary, not a single triggerable scenario; it gets verified by whatever tests exercise the behaviors that must respect it, not by a test of its own.
 - **Open questions** — anything genuinely unresolved when the spec is drafted (skip, don't leave blank, if none).
 - **Out of scope** — explicit list of what this spec does not decide (fixed floor, same discipline as `plan_template.md`).
+
+**A spec decides the domain model, never the physical storage shape (`ADR-006`'s 2026-09-18 amendment).** `BHV-*`/`CON-*` rows may name entities, fields, and relationships that must exist, and may state binding requirements a storage design must satisfy ("answerable in one query," "atomic against retries," "doesn't vary per viewer") — but MUST NOT assert DynamoDB `PK`/`SK` patterns, item-type names, or transaction/write mechanics. That belongs to the dedicated data-foundation ticket sequenced after the specs, so the schema gets built once. Phrase a storage-adjacent requirement as "Anticipated requirement for `#<data-ticket>`: …" (see `DOC/specs/accounts-and-auth.md` for the pattern) rather than naming a key. `naming.md` and `alternate-views.md` originally violated this (literal schema-rename tables and invented key patterns) and have since been amended in place — see each file's own "Amendment (2026-09-18, `ADR-006`)" note. `box-sizing.md` and `content-authoring.md` never actually violated it — naming a domain field (`Node.tier`, `Node.images`) is allowed; only physical key/item/transaction design isn't.
 
 ## Table format
 
