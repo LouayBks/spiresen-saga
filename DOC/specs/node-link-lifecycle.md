@@ -64,7 +64,7 @@ Define how Nodes and Links get created and deleted — `boxes-plan.md` names lin
 
 ## Open questions
 
-None new — see `content-authoring.md`'s open questions (exactly-1-child behavior, the lightweight/annotation toggle) for the two items this revision left unresolved; they belong there, not here.
+None — `content-authoring.md`'s exactly-1-child behavior is now resolved, and its lightweight/annotation toggle is deferred to the backlog (#46), not an open question anymore.
 
 ## Out of scope
 

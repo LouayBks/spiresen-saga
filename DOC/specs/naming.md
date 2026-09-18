@@ -24,7 +24,7 @@ Settle which name is used where (product brand vs. schema entities), and broaden
 | Individual canvas item (entity) | Box | **Node** | Schema/code/API: DynamoDB key prefix, id namespacing, all field names (`tier`, `note`, `urls`, `positions`, …). `kind` is not in this list — retired as a stored field entirely, see the row below. |
 | Link | Link | Link (unchanged) | |
 | View (≤3 per Map, `alternate-views.md`) | View | View (unchanged) | |
-| Node kinds | `note` / `media` / `group` | **retired as a stored field** — presentation is now inferred dynamically from a node's contents; see `content-authoring.md`'s dynamic-visualization rules | Not a rename — a real model change (2026-09-18), not just terminology. `note`/`media`/`group`/`annotation` survive only as *visualization states*, not a `kind` column. |
+| Node kinds | `note` / `media` / `group` | **retired as a stored field** — presentation is now inferred dynamically from a node's contents; see `content-authoring.md`'s dynamic-visualization rules | Not a rename — a real model change (2026-09-18), not just terminology. Info/gallery/article/map survive only as *visualization states*, not a `kind` column. (An `annotation`/lightweight state was proposed and dropped — deferred to the backlog as #46, not part of this model.) |
 | Link types | `theme` / `timeline` / `soft` | unchanged | |
 
 ## Schema rename (for `application_architecture.md` and the other three specs)
