@@ -23,7 +23,7 @@ Settle which name is used where (product brand vs. schema entities), and broaden
 |---|---|---|---|
 | Product/brand | Athar | **Saga** (temporary — see CON-2) | Public-facing: marketing copy, landing page, domain names, site title. |
 | Top-level per-user collection (entity) | Saga | **Map** | Schema/code/API: entity/class name, id namespacing, and (per CON-4) UI copy that names an individual collection — "a Map," "Your Maps." The DynamoDB key shape carrying this word is `#36`'s decision. |
-| Individual canvas item (entity) | Box | **Node** | Schema/code/API: entity/class name, id namespacing, all field names (`tier`, `note`, `urls`, `positions`, …). `kind` is not in this list — retired as a stored field entirely, see the row below. The DynamoDB key shape carrying this word is `#36`'s decision. |
+| Individual canvas item (entity) | Box | **Node** | Schema/code/API: entity/class name, id namespacing, all field names (`size`, `note`, `urls`, `positions`, …). `kind` is not in this list — retired as a stored field entirely, see the row below. The DynamoDB key shape carrying this word is `#36`'s decision. |
 | Link | Link | Link (unchanged) | |
 | View (≤3 per Map, `alternate-views.md`) | View | View (unchanged) | |
 | Node kinds | `note` / `media` / `group` | **retired as a stored field** — presentation is now inferred dynamically from a node's contents; see `content-authoring.md`'s dynamic-visualization rules | Not a rename — a real model change (2026-09-18), not just terminology. Info/gallery/article/map survive only as *visualization states*, not a `kind` column. (An `annotation`/lightweight state was proposed and dropped — deferred to the backlog as #46, not part of this model.) |
