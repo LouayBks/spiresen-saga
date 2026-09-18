@@ -35,6 +35,12 @@ permissions:
   contents: read
   pull-requests: write
   checks: write
+  # anthropics/claude-code-action requests a GitHub Actions OIDC token to
+  # authenticate itself; without this the job never gets an
+  # ACTIONS_ID_TOKEN_REQUEST_URL and the action fails before doing anything.
+  # continue-on-error below swallowed that failure silently — no review ever
+  # ran, but the check run still reported neutral (AW-13).
+  id-token: write
 
 jobs:
   review:
