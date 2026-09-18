@@ -16,6 +16,8 @@ Decide how a node's size communicates the emphasis/importance of the idea it hol
 
 **Keep the three fixed tiers (S/M/L), reframed explicitly as a deliberate emphasis choice** — not a footprint picked by content type or defaulted automatically. The owner picks S for a passing mention, M for a notable item, L for a featured/headline idea. A picker (not drag-resize handles) is the editing affordance: it keeps the "exactly three, deliberately chosen" model textually honest — a resize handle implies continuous choice, which is exactly what `boxes-plan.md` §4 already argued against. Soft-snap alignment guide behavior is unchanged from the existing spec (`boxes-plan.md` §4) — nothing about emphasis-driven tier selection affects how edges/centers snap on drag, so it isn't relitigated here.
 
+**Revision note (2026-09-18):** in freeform contexts (the outer canvas, or a nested Map that's switched to freeform per `window-system.md`), tier means what this spec already says — a footprint scaled by zoom. In a nested Map still in its default **grid** layout (`window-system.md` BHV-12/13), tier additionally determines a fixed grid-cell span, Android-homescreen-widget style (e.g. S = 1×1 cell, M/L = larger spans) — the exact spans aren't settled here, flagged in `window-system.md`'s Open questions as needing its own design pass. This doesn't change anything in this spec's own decision — tier is still the same three-value, owner-chosen field either way; grid mode just gives it a second meaning (cell span) alongside footprint.
+
 ## Expected behaviors (`BHV-*`)
 
 | ID | Statement | Testability check | Notes |
@@ -30,7 +32,7 @@ Decide how a node's size communicates the emphasis/importance of the idea it hol
 |---|---|---|
 | CON-1 | A Node's `tier` MUST be identical across every View of its Map — tier does not vary per view. | Owning decision for this field; `alternate-views.md` cites this row rather than deciding it independently. |
 | CON-2 | A Node's `tier` MUST be one of exactly three enumerated values (`S`, `M`, `L`) — no free-form or numeric size field. | Flagged for #36's `Node` schema. |
-| CON-3 | A Node's `tier` MUST NOT be inferred automatically from its `kind` (`note`/`media`/`group`/`annotation`) or content length — it is always an explicit owner choice. | `kind` and `tier` stay orthogonal, per the existing schema note in `application_architecture.md`. |
+| CON-3 | A Node's `tier` MUST NOT be inferred automatically from its visualization state (`content-authoring.md` CON-8) or content length — it is always an explicit owner choice. | Updated from "`kind`" now that visualization is inferred, not stored — tier stays orthogonal to it either way. |
 | CON-4 | The editing UI MUST NOT expose drag-to-resize handles on a node. | Direct consequence of rejecting free resize; keeps the picker as the only path to changing tier. |
 
 ## Open questions

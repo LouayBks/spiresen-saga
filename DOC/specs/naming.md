@@ -21,10 +21,10 @@ Settle which name is used where (product brand vs. schema entities), and broaden
 |---|---|---|---|
 | Product/brand | Athar | **Saga** (temporary — see CON-2) | Public-facing: marketing copy, landing page, domain names, site title. |
 | Top-level per-user collection (entity) | Saga | **Map** | Schema/code/API: DynamoDB key prefix, id namespacing, and (per CON-4) UI copy that names an individual collection — "a Map," "Your Maps." |
-| Individual canvas item (entity) | Box | **Node** | Schema/code/API: DynamoDB key prefix, id namespacing, all field names (`kind`, `tier`, `note`, `urls`, `positions`, …). |
+| Individual canvas item (entity) | Box | **Node** | Schema/code/API: DynamoDB key prefix, id namespacing, all field names (`tier`, `note`, `urls`, `positions`, …). `kind` is not in this list — retired as a stored field entirely, see the row below. |
 | Link | Link | Link (unchanged) | |
 | View (≤3 per Map, `alternate-views.md`) | View | View (unchanged) | |
-| Node kinds | `note` / `media` / `group` | `note` / `media` / `group` / **`annotation`** (new — see `content-authoring.md`) | Content-type descriptors, not entity/brand terms. |
+| Node kinds | `note` / `media` / `group` | **retired as a stored field** — presentation is now inferred dynamically from a node's contents; see `content-authoring.md`'s dynamic-visualization rules | Not a rename — a real model change (2026-09-18), not just terminology. `note`/`media`/`group`/`annotation` survive only as *visualization states*, not a `kind` column. |
 | Link types | `theme` / `timeline` / `soft` | unchanged | |
 
 ## Schema rename (for `application_architecture.md` and the other three specs)

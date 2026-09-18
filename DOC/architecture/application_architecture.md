@@ -84,7 +84,7 @@ The Saga/multi-tenancy schema work itself hasn't started (#9 stood up the bare F
 
 Reconciles `DOC/frontend/boxes-plan.md` (the box-canvas product/UI spec) against the schema above — written here because that's a real data-model decision, not a UI detail, and this file is the source of truth for schema (per `CLAUDE.md`'s pointer). `boxes-plan.md` should be read as the product spec; this section is the accompanying schema amendment.
 
-**`Box` gets a `kind` attribute:** `note` (title + short body + theme dot + date), `media` (thumbnail-led, for an article/video), or `group` (contains other boxes; opens as a window rather than expanding in place). `kind` is orthogonal to the S/M/L size tier already on `Box`.
+**Correction (2026-09-18): `Box` does NOT get a stored `kind` attribute — superseded below, before `application_architecture.md`'s Map/Node/dynamic-visualization terminology gets fully propagated into this file.** A box's presentation (note / media / group) is inferred at read time from its own contents — 2+ child boxes under its own partition renders it as a group; an attached article/video `DETAILS` record renders it as media; neither renders it as a plain note. No `kind` column is written or read. Size tier (S/M/L) is unaffected — still an explicit, stored, owner-chosen field, unrelated to this inference. Full detail: `DOC/specs/content-authoring.md` CON-8/CON-9.
 
 **`Link` is a new entity, sibling to `Box` under a Saga's partition:**
 

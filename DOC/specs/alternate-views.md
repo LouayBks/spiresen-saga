@@ -1,12 +1,14 @@
 # Spec: Alternate views (≤3 per Map) (#34)
 
-Format per `DOC/templates/spec_design_template.md` (ADR-006). Owns per-view position and Link storage. Cites `box-sizing.md` CON-1 rather than redeciding it: tier does not vary by view. Does not touch `content-authoring.md`'s fields (`note`/`urls`/article body) — those stay identical across every view of a node, same as `kind`.
+Format per `DOC/templates/spec_design_template.md` (ADR-006). Owns per-view position and Link storage. Cites `box-sizing.md` CON-1 rather than redeciding it: tier does not vary by view. Does not touch `content-authoring.md`'s fields (`note`/`urls`/article body) — those stay identical across every view of a node, same as its inferred visualization state (`content-authoring.md` CON-8).
 
 **Revision note (2026-09-18, part 1):** updated for `naming.md`'s rename — the top-level per-user collection is now **Map** (schema/code term), not "Saga." "Saga" is reserved for the product's public brand name and no longer appears in schema/key patterns.
 
 **Revision note (2026-09-18, part 2):** updated for `naming.md`'s further rename — the individual canvas item is now **Node** (schema/code term), not "Box." See `naming.md` for the full rename table.
 
-**Revision note (2026-09-18, part 3):** this spec's rules apply to *any* Map, not just the top-level one. A `group`-kind Node contains its own nested Map (`application_architecture.md`'s correction, `window-system.md`) — that nested Map gets the same ≤3-View system this spec already defines generically. Nothing below needed rewording; "a Map" already meant any Map.
+**Revision note (2026-09-18, part 3):** this spec's rules apply to *any* Map, not just the top-level one. A node with 2+ children contains its own nested Map (`application_architecture.md`'s correction, `window-system.md`) — that nested Map gets the same ≤3-View system this spec already defines generically. Nothing below needed rewording; "a Map" already meant any Map.
+
+**Revision note (2026-09-18, part 4):** `kind` is retired as a stored field (`naming.md`, `content-authoring.md`). CON-2 below is updated accordingly.
 
 ## Objective
 
@@ -43,7 +45,7 @@ Replace `boxes-plan.md`'s auto-computed Timeline/Theme layout engine — confirm
 | ID | Statement | Notes |
 |---|---|---|
 | CON-1 | A Map MUST have between 1 and 3 Views (inclusive) at all times. | Enforced by BHV-1 (floor) and BHV-2/BHV-3 (ceiling/floor on mutation). |
-| CON-2 | A Node's `kind`, `tier`, `note`, `urls`, and content body MUST be identical across every View — only `positions[viewId]` and View-scoped Links vary. | Cross-references `box-sizing.md` CON-1 (tier) and `content-authoring.md` (content fields) rather than re-deciding either. |
+| CON-2 | A Node's inferred visualization state, `tier`, `note`, `urls`, and content body MUST be identical across every View — only `positions[viewId]` and View-scoped Links vary. | Cross-references `box-sizing.md` CON-1 (tier) and `content-authoring.md` CON-8 (visualization inference) rather than re-deciding either. Updated from "`kind`," now retired. |
 | CON-3 | A `Link` MUST belong to exactly one View (`viewId` is part of its key, not a shared/multi-view reference). | The relationship-in-two-views case is modeled as two `Link` records, not one shared one — see Decisions. |
 | CON-4 | `Node`, `Link`, and `View` records MUST remain retrievable in the same single `Query` on `PK = MAP#{mapId}` — introducing Views MUST NOT require a second query or a per-view endpoint. | Preserves the existing Lambda-lean, single-partition-query design named in `application_architecture.md`. |
 | CON-5 | Deleting a View MUST delete only that View's own Links and its nodes' `positions[viewId]` entries — it MUST NOT delete the nodes themselves or their other Views' data. | Direct consequence of CON-3's per-view Link ownership. |
