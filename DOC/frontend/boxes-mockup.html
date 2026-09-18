@@ -1,0 +1,1141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Boxes — by Spiresen</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,400;1,500&family=Fraunces:ital,wght@1,600;1,700&family=Lora:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-void:#0b0a09;
+    --bg-panel:#151311;
+    --bg-panel-hover:#1b1815;
+    --ink:#eae6dd;
+    --ink-muted:#8f897d;
+    --hairline:#2c2823;
+    --clay:#c17a52;
+    --clay-dim:rgba(193,122,82,.45);
+    --slate:#93aebb;
+    --slate-dim:rgba(147,174,187,.4);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;background:var(--bg-void);color:var(--ink);font-family:'Lora',serif;overflow:hidden;}
+
+  /* ---------- ambient background (fixed, doesn't pan) ---------- */
+  .ambient{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+  .glow{
+    position:absolute;top:38%;left:46%;width:70vw;height:70vw;transform:translate(-50%,-50%);
+    background:radial-gradient(circle, rgba(193,122,82,.10) 0%, rgba(193,122,82,.045) 35%, rgba(11,10,9,0) 68%);
+  }
+  .glow2{
+    position:absolute;top:75%;left:78%;width:46vw;height:46vw;transform:translate(-50%,-50%);
+    background:radial-gradient(circle, rgba(147,174,187,.07) 0%, rgba(147,174,187,0) 65%);
+  }
+  .vignette{position:absolute;inset:0;box-shadow:inset 0 0 220px 40px rgba(0,0,0,.55);}
+  .motes span{
+    position:absolute;width:2px;height:2px;border-radius:50%;background:var(--ink-muted);opacity:.35;
+    animation:drift 14s ease-in-out infinite;
+  }
+  @keyframes drift{
+    0%{transform:translateY(0) translateX(0);opacity:.15;}
+    50%{transform:translateY(-22px) translateX(6px);opacity:.5;}
+    100%{transform:translateY(0) translateX(0);opacity:.15;}
+  }
+  .sprig{position:absolute;bottom:-40px;right:-40px;opacity:.16;}
+
+  /* ---------- top bar ---------- */
+  .topbar{
+    position:fixed;top:0;left:0;right:0;z-index:50;
+    display:flex;align-items:baseline;justify-content:space-between;
+    padding:26px 40px 0 40px;
+    pointer-events:none;
+  }
+  .topbar > *{pointer-events:auto;}
+  .brandrow{display:flex;align-items:center;gap:16px;}
+  .menubtn{
+    width:36px;height:36px;border-radius:50%;border:1px solid var(--hairline);background:var(--bg-panel);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;
+  }
+  .menubtn span{display:block;width:14px;height:1px;background:var(--ink-muted);}
+  .menubtn:hover{background:var(--bg-panel-hover);}
+  .menubtn:hover span{background:var(--ink);}
+  .brand{display:flex;flex-direction:column;gap:2px;}
+  .eyebrow{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:16px;color:var(--ink-muted);letter-spacing:.02em;}
+  .title{font-family:'Fraunces',serif;font-style:italic;font-weight:600;font-size:30px;color:var(--slate);line-height:1;}
+  .title b{color:var(--clay);font-weight:700;}
+
+  .viewtoggle{
+    display:flex;gap:2px;background:var(--bg-panel);border:1px solid var(--hairline);border-radius:999px;padding:3px;
+  }
+  .viewtoggle button{
+    font-family:'Lora',serif;font-size:13.5px;color:var(--ink-muted);background:transparent;border:none;
+    padding:8px 18px;border-radius:999px;cursor:pointer;transition:background .25s ease, color .25s ease;
+  }
+  .viewtoggle button.active{background:var(--bg-panel-hover);color:var(--ink);box-shadow:inset 0 0 0 1px var(--hairline);}
+  .viewtoggle button:hover:not(.active){color:var(--ink);}
+
+  .zoomctl{display:flex;align-items:center;gap:10px;color:var(--ink-muted);font-size:13px;font-family:'Lora',serif;margin-left:18px;}
+  .zoomctl button{
+    width:26px;height:26px;border-radius:50%;border:1px solid var(--hairline);background:var(--bg-panel);
+    color:var(--ink);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  }
+  .zoomctl button:hover{background:var(--bg-panel-hover);}
+  .rightcluster{display:flex;align-items:center;}
+
+  /* ---------- hidden nav menu ---------- */
+  .scrim{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:59;opacity:0;pointer-events:none;transition:opacity .25s ease;}
+  .scrim.open{opacity:1;pointer-events:auto;}
+  .navpanel{
+    position:fixed;top:0;left:0;bottom:0;width:300px;background:var(--bg-panel);border-right:1px solid var(--hairline);
+    z-index:60;transform:translateX(-100%);transition:transform .32s cubic-bezier(.65,0,.35,1);
+    padding:32px 30px;display:flex;flex-direction:column;gap:26px;
+  }
+  .navpanel.open{transform:translateX(0);}
+  .navpanel .eyebrow{margin-bottom:2px;}
+  .navsection{display:flex;flex-direction:column;gap:2px;}
+  .navlabel{font-size:11px;color:var(--ink-muted);letter-spacing:.06em;margin-bottom:8px;font-family:'Lora',serif;}
+  .sagaoption{
+    display:flex;align-items:center;gap:10px;padding:10px 4px;border-radius:4px;cursor:pointer;
+    font-family:'Fraunces',serif;font-style:italic;font-size:16px;color:var(--ink-muted);
+    border-bottom:1px solid transparent;
+  }
+  .sagaoption:hover{color:var(--ink);}
+  .sagaoption.current{color:var(--ink);}
+  .sagaoption .ring{width:7px;height:7px;border-radius:50%;border:1px solid var(--ink-muted);flex:none;}
+  .sagaoption.current .ring{background:var(--clay);border-color:var(--clay);}
+  .navdivider{height:1px;background:var(--hairline);margin:2px 0;}
+  .navlink{font-size:14.5px;color:var(--ink-muted);padding:9px 4px;cursor:pointer;font-family:'Lora',serif;}
+  .navlink:hover{color:var(--ink);}
+
+  /* ---------- canvas ---------- */
+  .stage{position:fixed;inset:0;cursor:grab;z-index:1;}
+  .stage.panning{cursor:grabbing;}
+  .canvas-world{position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform;}
+  .dotgrid{position:absolute;inset:-4000px;background-image:radial-gradient(var(--hairline) 1px, transparent 1px);background-size:34px 34px;opacity:.28;}
+  .dotgrid.far{background-size:102px 102px;opacity:.3;}
+  svg.links{position:absolute;top:-4000px;left:-4000px;width:8000px;height:8000px;overflow:visible;pointer-events:none;}
+  .link-path{fill:none;stroke-width:1.2;transition:opacity .3s ease, stroke-width .2s ease;}
+  .link-theme{stroke:var(--slate-dim);}
+  .link-time{stroke:var(--clay-dim);}
+  .link-soft{stroke:var(--hairline);stroke-dasharray:3 5;}
+  .link-path.highlight{opacity:1 !important;stroke-width:1.8;}
+  .link-path.dimmed{opacity:.12;}
+
+  /* ---------- boxes ---------- */
+  .box{
+    position:absolute;background:var(--bg-panel);border:1px solid var(--hairline);border-radius:3px;
+    padding:16px 18px;cursor:grab;overflow:hidden;
+    transition:opacity .3s ease, box-shadow .2s ease, border-color .2s ease, left .6s cubic-bezier(.65,0,.35,1), top .6s cubic-bezier(.65,0,.35,1), width .6s cubic-bezier(.65,0,.35,1), height .6s cubic-bezier(.65,0,.35,1);
+    user-select:none;
+  }
+  .box.dragging{cursor:grabbing;box-shadow:0 14px 34px rgba(0,0,0,.45);transition:opacity .3s ease;z-index:40;}
+  .box.dimmed{opacity:.3;}
+  .box .dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:8px;position:relative;top:-1px;}
+  .box .label{font-family:'Lora',serif;font-size:11.5px;letter-spacing:.02em;color:var(--ink-muted);display:flex;align-items:center;margin-bottom:8px;}
+  .box h3{font-family:'Fraunces',serif;font-style:italic;font-weight:600;font-size:17px;margin:0 0 6px 0;color:var(--ink);line-height:1.25;}
+  .box p{font-size:13px;line-height:1.5;color:var(--ink-muted);margin:0;}
+  .box .date{position:absolute;bottom:12px;right:14px;font-size:11px;color:var(--ink-muted);font-style:italic;font-family:'Cormorant Garamond',serif;}
+
+  .box[data-theme="build"] .dot{background:var(--clay);}
+  .box[data-theme="research"] .dot{background:var(--slate);}
+  .box[data-theme="craft"] .dot{background:#9a8f7c;}
+  .box[data-theme="story"] .dot{background:#b6935f;}
+
+  /* media box (article / video) */
+  .box.media{padding:0;display:flex;flex-direction:column;}
+  .box.media .thumb{
+    height:52%;background:linear-gradient(135deg, #2a241d 0%, #1a1613 60%);position:relative;flex:none;
+    border-bottom:1px solid var(--hairline);
+  }
+  .box.media .thumb::after{
+    content:'';position:absolute;inset:0;
+    background:repeating-linear-gradient(60deg, transparent 0 12px, rgba(193,122,82,.05) 12px 13px);
+  }
+  .box.media .kind{
+    position:absolute;left:10px;top:10px;font-size:10px;letter-spacing:.04em;color:var(--ink);
+    background:rgba(11,10,9,.55);border:1px solid var(--hairline);border-radius:999px;padding:3px 9px;
+    font-family:'Lora',serif;
+  }
+  .box.media .play{
+    position:absolute;right:12px;bottom:10px;width:22px;height:22px;border-radius:50%;
+    border:1px solid rgba(234,230,221,.5);display:flex;align-items:center;justify-content:center;
+  }
+  .box.media .play i{width:0;height:0;border-left:7px solid var(--ink);border-top:5px solid transparent;border-bottom:5px solid transparent;margin-left:2px;}
+  .box.media .body{padding:12px 16px 14px;flex:1;display:flex;flex-direction:column;justify-content:center;}
+  .box.media h3{font-size:15.5px;}
+
+  /* group box (boxes inside boxes) */
+  .box.group{cursor:default;}
+  .box.group .grouphead{display:flex;align-items:center;justify-content:space-between;cursor:grab;}
+  .box.group .count{font-size:11px;color:var(--ink-muted);font-family:'Lora',serif;}
+  .box.group .expand{
+    width:20px;height:20px;border-radius:50%;border:1px solid var(--hairline);background:transparent;
+    color:var(--ink-muted);font-size:13px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none;
+  }
+  .box.group .expand:hover{color:var(--ink);border-color:var(--ink-muted);}
+  .box.group .nested{
+    display:none;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;
+  }
+  .box.group.expanded .nested{display:grid;}
+  .box.group.expanded p{display:none;}
+  .nested .chip{
+    border:1px solid var(--hairline);border-radius:3px;padding:8px 10px;background:var(--bg-void);
+  }
+  .nested .chip .dot{width:5px;height:5px;}
+  .nested .chip .clabel{font-size:11px;color:var(--ink-muted);margin-bottom:4px;display:flex;align-items:center;}
+  .nested .chip .ctitle{font-family:'Fraunces',serif;font-style:italic;font-size:12.5px;color:var(--ink);}
+
+  /* ---------- footer tagline ---------- */
+  .tagline{
+    position:fixed;bottom:26px;left:40px;z-index:50;
+    font-family:'Cormorant Garamond',serif;font-style:italic;color:var(--ink-muted);font-size:15px;
+    pointer-events:none;
+  }
+  .tagline b{color:var(--clay);font-weight:500;font-style:normal;}
+  .hint{
+    position:fixed;bottom:26px;right:40px;z-index:50;font-size:12px;color:var(--ink-muted);
+    font-family:'Lora',serif;pointer-events:none;text-align:right;line-height:1.6;
+  }
+
+  /* ---------- box expansion: windows ---------- */
+  .winscrim{
+    position:fixed;inset:0;background:rgba(6,5,4,.55);z-index:44;opacity:0;pointer-events:none;
+    transition:opacity .3s ease;
+  }
+  .winscrim.open{opacity:1;pointer-events:auto;}
+  .winlayer{position:fixed;inset:0;z-index:45;pointer-events:none;}
+  .window{
+    position:absolute;background:var(--bg-panel);border:1px solid var(--hairline);border-radius:11px;
+    box-shadow:0 30px 70px rgba(0,0,0,.55), 0 2px 0 rgba(255,255,255,.02) inset;
+    display:flex;flex-direction:column;overflow:hidden;pointer-events:auto;
+    transition:top .42s cubic-bezier(.65,0,.35,1), left .42s cubic-bezier(.65,0,.35,1),
+               width .42s cubic-bezier(.65,0,.35,1), height .42s cubic-bezier(.65,0,.35,1),
+               opacity .25s ease;
+    will-change:left, top, width, height;
+  }
+  .window.wmoving{transition:opacity .25s ease;} /* disabled while the person is actively dragging/resizing it by hand */
+  .window.fullview{border-radius:0;}
+  .win-titlebar{
+    height:42px;flex:none;display:flex;align-items:center;gap:14px;padding:0 14px;
+    border-bottom:1px solid var(--hairline);cursor:grab;background:var(--bg-panel-hover);
+    -webkit-app-region:drag;
+  }
+  .win-titlebar.locked{cursor:default;}
+  .win-dots{display:flex;gap:6px;flex:none;}
+  .win-dots span{width:8px;height:8px;border-radius:50%;background:var(--hairline);border:1px solid #3a352e;}
+  .win-crumbs{flex:1;display:flex;align-items:center;gap:6px;overflow:hidden;white-space:nowrap;
+    font-family:'Lora',serif;font-size:12.5px;color:var(--ink-muted);}
+  .win-crumbs .seg{cursor:pointer;}
+  .win-crumbs .seg:hover{color:var(--ink);}
+  .win-crumbs .seg.current{color:var(--ink);font-style:italic;font-family:'Fraunces',serif;font-size:13.5px;cursor:default;}
+  .win-crumbs .sep{color:var(--hairline);}
+  .win-close{
+    width:20px;height:20px;border-radius:50%;border:1px solid var(--hairline);background:transparent;
+    color:var(--ink-muted);font-size:12px;display:flex;align-items:center;justify-content:center;
+    cursor:pointer;flex:none;
+  }
+  .win-close:hover{color:var(--ink);border-color:var(--ink-muted);}
+  .win-expand{
+    width:20px;height:20px;border-radius:50%;border:1px solid var(--hairline);background:transparent;
+    color:var(--ink-muted);font-size:11px;display:flex;align-items:center;justify-content:center;
+    cursor:pointer;flex:none;
+  }
+  .win-expand:hover{color:var(--ink);border-color:var(--ink-muted);}
+  .win-body{flex:1;overflow:hidden;position:relative;}
+  .win-stage{position:absolute;inset:0;cursor:grab;overflow:hidden;}
+  .win-stage.panning{cursor:grabbing;}
+  .win-world{position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform;}
+  .win-dotgrid{position:absolute;inset:-1500px;background-image:radial-gradient(var(--hairline) 1px, transparent 1px);background-size:26px 26px;opacity:.3;}
+  .win-links-svg{position:absolute;top:-1500px;left:-1500px;width:3000px;height:3000px;overflow:visible;pointer-events:none;}
+  .win-link-path{fill:none;stroke-width:1.1;}
+
+  /* article / video window content */
+  .article-scroll{position:absolute;inset:0;overflow-y:auto;}
+  .article-hero{
+    height:220px;background:linear-gradient(150deg, #2c261e 0%, #181410 65%);position:relative;flex:none;
+    border-bottom:1px solid var(--hairline);
+  }
+  .article-hero::after{
+    content:'';position:absolute;inset:0;
+    background:repeating-linear-gradient(58deg, transparent 0 16px, rgba(193,122,82,.055) 16px 17px);
+  }
+  .article-hero .harticle-kind{
+    position:absolute;left:18px;top:18px;font-size:11px;letter-spacing:.04em;color:var(--ink);
+    background:rgba(11,10,9,.55);border:1px solid var(--hairline);border-radius:999px;padding:4px 11px;
+    font-family:'Lora',serif;
+  }
+  .article-body{padding:28px 36px 44px;}
+  .article-meta{font-size:11px;color:var(--ink-muted);letter-spacing:.03em;margin-bottom:10px;font-family:'Lora',serif;}
+  .article-title{font-family:'Fraunces',serif;font-style:italic;font-weight:600;font-size:24px;color:var(--ink);margin:0 0 20px;line-height:1.25;}
+  .article-body p{font-family:'Lora',serif;font-size:14.5px;line-height:1.75;color:var(--ink-muted);margin:0 0 16px;max-width:60ch;}
+
+  .video-wrap{position:absolute;inset:0;display:flex;flex-direction:column;}
+  .video-frame{
+    flex:1;background:linear-gradient(150deg, #221d17 0%, #14110d 70%);position:relative;
+    display:flex;align-items:center;justify-content:center;border-bottom:1px solid var(--hairline);
+  }
+  .video-frame::after{
+    content:'';position:absolute;inset:0;
+    background:repeating-linear-gradient(58deg, transparent 0 16px, rgba(147,174,187,.05) 16px 17px);
+  }
+  .vplay{
+    position:relative;width:52px;height:52px;border-radius:50%;border:1px solid rgba(234,230,221,.5);
+    display:flex;align-items:center;justify-content:center;background:rgba(11,10,9,.35);
+  }
+  .vplay i{width:0;height:0;border-left:15px solid var(--ink);border-top:10px solid transparent;border-bottom:10px solid transparent;margin-left:4px;}
+  .video-caption{padding:16px 22px;flex:none;}
+  .mini-node{
+    position:absolute;border:1px solid var(--hairline);border-radius:5px;background:var(--bg-void);
+    padding:10px 12px;cursor:grab;transition:border-color .2s ease, background .2s ease, box-shadow .2s ease;
+    user-select:none;overflow:hidden;
+  }
+  .mini-node:active{cursor:grabbing;}
+  .mini-node.opens:hover{border-color:var(--ink-muted);background:var(--bg-panel-hover);box-shadow:0 6px 18px rgba(0,0,0,.35);}
+  .mini-node .clabel{font-size:10.5px;color:var(--ink-muted);display:flex;align-items:center;margin-bottom:6px;font-family:'Lora',serif;}
+  .mini-node .clabel .dot{width:6px;height:6px;border-radius:50%;margin-right:6px;flex:none;}
+  .mini-node .ctitle{font-family:'Fraunces',serif;font-style:italic;font-size:13.5px;color:var(--ink);line-height:1.28;}
+  .mini-node .cmeta{margin-top:6px;font-size:10.5px;color:var(--ink-muted);font-family:'Lora',serif;}
+  .mini-node.media{padding:0;display:flex;flex-direction:column;}
+  .mini-node.media .mthumb{
+    height:34px;background:linear-gradient(135deg, #2a241d 0%, #1a1613 60%);position:relative;flex:none;
+    border-bottom:1px solid var(--hairline);
+  }
+  .mini-node.media .mthumb::after{
+    content:'';position:absolute;inset:0;
+    background:repeating-linear-gradient(60deg, transparent 0 10px, rgba(193,122,82,.06) 10px 11px);
+  }
+  .mini-node.media .mkind{
+    position:absolute;left:6px;top:5px;font-size:9px;letter-spacing:.03em;color:var(--ink);
+    background:rgba(11,10,9,.6);border-radius:999px;padding:2px 7px;font-family:'Lora',serif;
+  }
+  .mini-node.media .mbody{padding:8px 10px 9px;flex:1;}
+  .mini-node.media .ctitle{font-size:12.5px;}
+  .win-resize{
+    position:absolute;right:0;bottom:0;width:18px;height:18px;cursor:nwse-resize;
+    background:linear-gradient(135deg, transparent 45%, var(--hairline) 45%, var(--hairline) 55%, transparent 55%,
+      transparent 65%, var(--hairline) 65%, var(--hairline) 75%, transparent 75%);
+  }
+</style>
+</head>
+<body>
+
+  <div class="ambient">
+    <div class="glow"></div>
+    <div class="glow2"></div>
+    <svg class="sprig" width="260" height="260" viewBox="0 0 260 260">
+      <path d="M20 240 C 60 200, 70 150, 130 120 C 170 100, 190 70, 200 20" fill="none" stroke="#c17a52" stroke-width="1"/>
+      <path d="M130 120 C 150 110, 165 95, 168 78" fill="none" stroke="#c17a52" stroke-width="1"/>
+      <path d="M90 165 C 108 158, 120 145, 124 130" fill="none" stroke="#93aebb" stroke-width="1"/>
+      <circle cx="200" cy="20" r="3" fill="#c17a52"/>
+      <circle cx="168" cy="78" r="2.4" fill="#c17a52"/>
+      <circle cx="124" cy="130" r="2.4" fill="#93aebb"/>
+    </svg>
+    <div class="motes" id="motes"></div>
+    <div class="vignette"></div>
+  </div>
+
+  <div class="scrim" id="scrim"></div>
+  <nav class="navpanel" id="navpanel">
+    <div class="brand">
+      <span class="eyebrow">Boxes</span>
+      <span class="title">by Spiresen</span>
+    </div>
+    <div class="navsection">
+      <span class="navlabel">Sagas — different stories, same boxes</span>
+      <div id="sagaList"></div>
+    </div>
+    <div class="navdivider"></div>
+    <div class="navsection">
+      <div class="navlink">Profile</div>
+      <div class="navlink">About Spiresen</div>
+      <div class="navlink">Contact</div>
+    </div>
+  </nav>
+
+  <div class="topbar">
+    <div class="brandrow">
+      <div class="menubtn" id="menuBtn"><span></span><span></span><span></span></div>
+      <div class="brand">
+        <span class="eyebrow" id="sagaEyebrow">For recruiters</span>
+        <span class="title">B<b>oxes</b></span>
+      </div>
+    </div>
+    <div class="rightcluster">
+      <div class="viewtoggle" id="viewtoggle">
+        <button data-view="freeform" class="active">Freeform</button>
+        <button data-view="timeline">Timeline</button>
+        <button data-view="theme">Theme</button>
+      </div>
+      <div class="zoomctl">
+        <button id="zoomOut">–</button>
+        <span id="zoomLabel">100%</span>
+        <button id="zoomIn">+</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="stage" id="stage">
+    <div class="canvas-world" id="world">
+      <div class="dotgrid far"></div>
+      <div class="dotgrid"></div>
+      <svg class="links" id="linksSvg"></svg>
+      <!-- boxes injected by JS -->
+    </div>
+  </div>
+
+  <div class="winscrim" id="winscrim"></div>
+  <div class="winlayer" id="winlayer"></div>
+
+  <div class="tagline">Don't just put me in a <b>box.</b></div>
+  <div class="hint">drag boxes · drag empty canvas to pan · scroll to zoom</div>
+
+<script>
+/* ---------------------------------------------------------
+   Sagas: the same person, arranged as different stories.
+--------------------------------------------------------- */
+const sagas = {
+  recruiter: {
+    label: 'For recruiters',
+    boxes: [
+      {id:'b1', kind:'note',  theme:'build',    tier:'L', title:'Boxes — the canvas itself',  body:'Angular 22 signals driving a live drag-and-drop portfolio surface.', x:120,  y:160, date:'2026'},
+      {id:'b2', kind:'note',  theme:'build',    tier:'M', title:'FastAPI on Lambda',          body:'Serverless backend, DynamoDB single-table design.',                  x:520,  y:90,  date:'2026'},
+      {id:'b3', kind:'note',  theme:'research', tier:'M', title:'FinOps for Agentic AI',      body:'Shift-left cost thinking for AI-assisted development.',              x:860,  y:220, date:'2026'},
+      {id:'b4', kind:'group', theme:'craft',    tier:'L', title:'Clean Code, in practice',    body:'', x:560, y:400, date:'2025',
+        children:[{theme:'craft', title:'Lint & type gates'},{theme:'craft', title:'CLAUDE.md rules', children:[{theme:'craft', title:'CC-16 to CC-19'},{theme:'craft', title:'CC-23 to CC-26'}]},{theme:'research', title:'Testing Trophy'},{theme:'build', title:'Fail-fast rules'}]},
+      {id:'b5', kind:'note',  theme:'research', tier:'S', title:'Testing Strategy',           body:'The Testing Trophy, applied.',                                        x:920,  y:460, date:'2025'},
+      {id:'b6', kind:'note',  theme:'craft',    tier:'M', title:'Agentic Workflow Design',    body:'Single-agent-by-default, worktrees for parallelism.',                 x:180,  y:440, date:'2025'},
+      {id:'b7', kind:'note',  theme:'build',    tier:'S', title:'Cognito & Google SSO',       body:'Auth, kept boring on purpose.',                                       x:340,  y:640, date:'2024'},
+      {id:'b8', kind:'note',  theme:'research', tier:'L', title:'Codebase Architecture ADR',  body:'Vertical-slice, chosen against ten scored criteria.',                 x:760,  y:640, date:'2024'},
+    ],
+    links: [
+      {a:'b1', b:'b2', type:'time'}, {a:'b1', b:'b7', type:'time'}, {a:'b2', b:'b8', type:'theme'},
+      {a:'b2', b:'b7', type:'theme'}, {a:'b3', b:'b5', type:'theme'}, {a:'b3', b:'b1', type:'soft'},
+      {a:'b4', b:'b6', type:'theme'}, {a:'b4', b:'b8', type:'soft'}, {a:'b6', b:'b7', type:'time'}, {a:'b5', b:'b8', type:'time'},
+    ]
+  },
+  behind: {
+    label: 'Behind the work',
+    boxes: [
+      {id:'m1', kind:'media', theme:'story', tier:'M', title:'Why plan before you build', body:'', x:140, y:130, date:'2026', mediaKind:'Article',
+        content:{ meta:'Article · 6 min read · 2026', paragraphs:[
+          'Every project eventually has to answer an unglamorous question: when do you actually start typing code? The honest answer, most of the time, is "too early" — before anyone has written down what "done" means, let alone how the thing should be shaped once an AI is doing half the typing.',
+          'Shift-left is usually a cost conversation. Catch the bug before it ships, catch the security hole before the audit, catch the bad architecture before the fourth team has already built on top of it. Cheaper earlier, more expensive later — nothing new there.',
+          'What is new is who is doing the building. When an agent is writing a meaningful share of the codebase, the decisions that used to only matter for humans — how files are organized, how conventions are written down, how tests are shaped — start doubling as decisions about token spend, review overhead, and how often the agent gets confidently lost.',
+          'So the plan comes first. Not because planning is virtuous, but because a boring, well-labeled box is a lot cheaper to search through than a beautiful one nobody indexed.'
+        ]}},
+      {id:'m2', kind:'media', theme:'story', tier:'L', title:'A walkthrough of the box canvas', body:'', x:520, y:100, date:'2026', mediaKind:'Video',
+        content:{ duration:'6:40 · Video' }},
+      {id:'m3', kind:'note',  theme:'craft', tier:'S', title:'On writing ADRs',            body:'Why every decision gets a paper trail.',                              x:880, y:260, date:'2025'},
+      {id:'m4', kind:'media', theme:'story', tier:'M', title:'Ten decisions, scored',      body:'', x:300, y:420, date:'2025', mediaKind:'Article',
+        content:{ meta:'Article · 4 min read · 2025', paragraphs:[
+          'Ten criteria, four architectures, a spreadsheet nobody asked to see: this is the part of the process that never makes it into a portfolio, which is exactly why it belongs in one.',
+          'Vertical slice won on cohesion, indirection depth, and how cheaply a fresh agent session could re-orient itself in the code — not because it was fashionable, but because the other options scored worse on the specific things that were actually being measured.',
+          'The scoring grid is not the interesting part. The interesting part is writing down, in public, which criteria you were willing to lose on — and why losing on those was fine.'
+        ]}},
+      {id:'m5', kind:'group', theme:'craft', tier:'L', title:'Talks & interviews',         body:'', x:700, y:460, date:'2025',
+        children:[{theme:'story', title:'FinOps meetup, Sept'},{theme:'story', title:'Podcast: shift-left', children:[{theme:'story', title:'Episode outline'},{theme:'story', title:'Listener Q&A clip'},{theme:'story', title:'Recording', kind:'media', mediaKind:'Video', content:{duration:'32:10 · Video'}}]},{theme:'craft', title:'Panel notes'}]},
+    ],
+    links: [
+      {a:'m1', b:'m2', type:'theme'}, {a:'m2', b:'m5', type:'soft'}, {a:'m1', b:'m4', type:'time'}, {a:'m4', b:'m5', type:'theme'},
+    ]
+  }
+};
+let currentSaga = 'recruiter';
+
+const tierSize = {S:{w:190,h:110}, M:{w:250,h:150}, L:{w:300,h:190}};
+
+/* ---------------------------------------------------------
+   Ambient dust motes
+--------------------------------------------------------- */
+const motesEl = document.getElementById('motes');
+for(let i=0;i<16;i++){
+  const s = document.createElement('span');
+  s.style.left = (Math.random()*100)+'vw';
+  s.style.top = (Math.random()*100)+'vh';
+  s.style.animationDuration = (10+Math.random()*10)+'s';
+  s.style.animationDelay = (Math.random()*8)+'s';
+  motesEl.appendChild(s);
+}
+
+/* ---------------------------------------------------------
+   Render
+--------------------------------------------------------- */
+const world = document.getElementById('world');
+const svg = document.getElementById('linksSvg');
+const SVG_OFFSET = 4000;
+
+let boxes = [], links = [], boxEls = {}, linkEls = {};
+
+function renderBox(b){
+  const size = tierSize[b.tier];
+  const el = document.createElement('div');
+  el.dataset.theme = b.theme;
+  el.dataset.id = b.id;
+  el.style.width = size.w+'px';
+  el.style.height = size.h+'px';
+  el.style.left = b.x+'px';
+  el.style.top = b.y+'px';
+
+  if(b.kind === 'media'){
+    el.className = 'box media';
+    el.innerHTML = `
+      <div class="thumb opener"><span class="kind">${b.mediaKind}</span><span class="play"><i></i></span></div>
+      <div class="body">
+        <div class="label"><span class="dot"></span>${b.theme}</div>
+        <h3 class="opener">${b.title}</h3>
+      </div>`;
+    const openThis = (e)=>{
+      e.stopPropagation();
+      const type = b.mediaKind === 'Article' ? 'article' : 'video';
+      openWindowStack({type, title:b.title, content:b.content||{}}, el);
+    };
+    el.querySelector('.thumb').addEventListener('click', openThis);
+    el.querySelector('h3').addEventListener('click', openThis);
+    el.style.cursor = 'pointer';
+  } else if(b.kind === 'group'){
+    el.className = 'box group';
+    el.innerHTML = `
+      <div class="grouphead">
+        <div class="label"><span class="dot"></span>${b.theme}</div>
+        <button class="expand opener" title="Open">+</button>
+      </div>
+      <h3>${b.title}</h3>
+      <p class="count">${b.children.length} items inside — expand to see them</p>
+      <span class="date">${b.date}</span>`;
+    const openThis = (e)=>{ e.stopPropagation(); openWindowStack({type:'tree', title:b.title, items:b.children}, el); };
+    el.querySelector('.expand').addEventListener('click', openThis);
+    el.querySelector('h3').addEventListener('click', openThis);
+    el.querySelector('h3').style.cursor = 'pointer';
+  } else {
+    el.className = 'box';
+    el.innerHTML = `
+      <div class="label"><span class="dot"></span>${b.theme}</div>
+      <h3>${b.title}</h3>
+      <p>${b.body}</p>
+      <span class="date">${b.date}</span>`;
+  }
+
+  world.appendChild(el);
+  boxEls[b.id] = el;
+  makeDraggable(el, b);
+  el.addEventListener('mouseenter', ()=>focusBox(b.id));
+  el.addEventListener('mouseleave', ()=>unfocus());
+}
+
+function loadSaga(key){
+  currentSaga = key;
+  world.querySelectorAll('.box').forEach(el=>el.remove());
+  boxEls = {}; linkEls = {};
+  svg.innerHTML = '';
+  const data = sagas[key];
+  boxes = data.boxes.map(b=>({...b}));
+  links = data.links.map(l=>({...l}));
+  boxes.forEach(renderBox);
+  links.forEach((l,i)=>{
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('class', 'link-path link-'+l.type);
+    svg.appendChild(path);
+    linkEls[i] = path;
+  });
+  document.getElementById('sagaEyebrow').textContent = data.label;
+  redrawLinks();
+  renderSagaList();
+}
+
+function renderSagaList(){
+  const list = document.getElementById('sagaList');
+  list.innerHTML = '';
+  Object.entries(sagas).forEach(([key, data])=>{
+    const row = document.createElement('div');
+    row.className = 'sagaoption' + (key===currentSaga ? ' current' : '');
+    row.innerHTML = `<span class="ring"></span>${data.label}`;
+    row.addEventListener('click', ()=>{ loadSaga(key); closeMenu(); });
+    list.appendChild(row);
+  });
+}
+
+/* ---------------------------------------------------------
+   Links: quadratic bezier curves between box edge midpoints
+--------------------------------------------------------- */
+function center(b){ const s = tierSize[b.tier]; return {x:b.x+s.w/2, y:b.y+s.h/2}; }
+function boxOf(id){ return boxes.find(b=>b.id===id); }
+
+function redrawLinks(){
+  links.forEach((l,i)=>{
+    const a = boxOf(l.a), b = boxOf(l.b);
+    if(!a || !b) return;
+    const ca = center(a), cb = center(b);
+    const mx = (ca.x+cb.x)/2, my = (ca.y+cb.y)/2;
+    const dx = cb.x-ca.x, dy = cb.y-ca.y;
+    const dist = Math.hypot(dx,dy) || 1;
+    const nx = -dy/dist, ny = dx/dist;
+    const bow = Math.min(60, dist*0.18);
+    const ctrlx = mx + nx*bow, ctrly = my + ny*bow;
+    const x1 = ca.x + SVG_OFFSET, y1 = ca.y + SVG_OFFSET;
+    const x2 = cb.x + SVG_OFFSET, y2 = cb.y + SVG_OFFSET;
+    const cx = ctrlx + SVG_OFFSET, cy = ctrly + SVG_OFFSET;
+    linkEls[i].setAttribute('d', `M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`);
+  });
+}
+
+function focusBox(id){
+  links.forEach((l,i)=>{
+    const related = l.a===id || l.b===id;
+    linkEls[i].classList.toggle('highlight', related);
+    linkEls[i].classList.toggle('dimmed', !related);
+  });
+  Object.entries(boxEls).forEach(([bid, el])=>{
+    const related = bid===id || links.some(l => (l.a===id&&l.b===bid) || (l.b===id&&l.a===bid));
+    el.classList.toggle('dimmed', !related);
+  });
+}
+function unfocus(){
+  links.forEach((l,i)=>{ linkEls[i].classList.remove('highlight','dimmed'); });
+  Object.values(boxEls).forEach(el=>el.classList.remove('dimmed'));
+}
+
+/* ---------------------------------------------------------
+   Drag a single box
+--------------------------------------------------------- */
+function makeDraggable(el, model){
+  const handle = el.classList.contains('group') ? el.querySelector('.grouphead') : el;
+  let dragging=false, startX=0, startY=0, origX=0, origY=0, queued=false, lastX=0, lastY=0;
+  handle.addEventListener('pointerdown', (e)=>{
+    if(currentView!=='freeform') return;
+    if(e.target.closest('.opener')) return; // let the opener's own click fire, don't capture the pointer
+    dragging=true;
+    el.classList.add('dragging');
+    handle.setPointerCapture(e.pointerId);
+    startX=e.clientX; startY=e.clientY;
+    origX=model.x; origY=model.y;
+    e.stopPropagation();
+  });
+  handle.addEventListener('pointermove', (e)=>{
+    if(!dragging) return;
+    lastX=e.clientX; lastY=e.clientY;
+    e.stopPropagation();
+    if(queued) return;
+    queued = true;
+    requestAnimationFrame(()=>{
+      queued = false;
+      const dx=(lastX-startX)/zoom, dy=(lastY-startY)/zoom;
+      model.x=origX+dx; model.y=origY+dy;
+      el.style.left=model.x+'px'; el.style.top=model.y+'px';
+      redrawLinks();
+    });
+  });
+  handle.addEventListener('pointerup', (e)=>{
+    dragging=false;
+    el.classList.remove('dragging');
+    e.stopPropagation();
+  });
+}
+
+/* ---------------------------------------------------------
+   Pan + zoom
+--------------------------------------------------------- */
+const stage = document.getElementById('stage');
+let panX=-620, panY=-400, zoom=0.85;
+let panning=false, panStartX=0, panStartY=0, panOrigX=0, panOrigY=0, panQueued=false, panLastX=0, panLastY=0;
+
+function applyTransform(){
+  world.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+  document.getElementById('zoomLabel').textContent = Math.round(zoom*100)+'%';
+}
+applyTransform();
+
+stage.addEventListener('pointerdown', (e)=>{
+  panning=true; stage.classList.add('panning');
+  panStartX=e.clientX; panStartY=e.clientY;
+  panOrigX=panX; panOrigY=panY;
+});
+stage.addEventListener('pointermove', (e)=>{
+  if(!panning) return;
+  panLastX=e.clientX; panLastY=e.clientY;
+  if(panQueued) return;
+  panQueued = true;
+  requestAnimationFrame(()=>{
+    panQueued = false;
+    panX = panOrigX + (panLastX-panStartX);
+    panY = panOrigY + (panLastY-panStartY);
+    applyTransform();
+  });
+});
+window.addEventListener('pointerup', ()=>{ panning=false; stage.classList.remove('panning'); });
+
+stage.addEventListener('wheel', (e)=>{
+  e.preventDefault();
+  const delta = -e.deltaY*0.0012;
+  zoom = Math.min(1.6, Math.max(0.4, zoom+delta));
+  applyTransform();
+}, {passive:false});
+
+document.getElementById('zoomIn').addEventListener('click', ()=>{ zoom=Math.min(1.6, zoom+0.12); applyTransform(); });
+document.getElementById('zoomOut').addEventListener('click', ()=>{ zoom=Math.max(0.4, zoom-0.12); applyTransform(); });
+
+/* ---------------------------------------------------------
+   View modes
+--------------------------------------------------------- */
+let currentView='freeform';
+let freeformPositions = {};
+
+function snapshotFreeform(){ boxes.forEach(b=>freeformPositions[b.id]={x:b.x,y:b.y}); }
+
+const themeColumns = {build:80, research:520, craft:960, story:520};
+
+function layoutTimeline(){
+  const sorted = [...boxes].sort((a,b)=>a.date.localeCompare(b.date));
+  const laneY = [140, 340, 540];
+  sorted.forEach((b,i)=>{ b.x = 60 + i*250; b.y = laneY[i%laneY.length]; });
+}
+function layoutTheme(){
+  const counters = {};
+  boxes.forEach(b=>{
+    counters[b.theme] = counters[b.theme] || 0;
+    const col = themeColumns[b.theme] ?? 520;
+    b.x = col + (counters[b.theme]%2)*40;
+    b.y = 100 + Math.floor(counters[b.theme])*200;
+    counters[b.theme]++;
+  });
+}
+function layoutFreeform(){
+  boxes.forEach(b=>{ const p = freeformPositions[b.id]; if(p){ b.x=p.x; b.y=p.y; } });
+}
+
+function renderLayout(){
+  boxes.forEach(b=>{ const el = boxEls[b.id]; el.style.left = b.x+'px'; el.style.top = b.y+'px'; });
+  redrawLinks();
+}
+
+document.getElementById('viewtoggle').addEventListener('click', (e)=>{
+  const btn = e.target.closest('button');
+  if(!btn) return;
+  document.querySelectorAll('.viewtoggle button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  if(currentView==='freeform') snapshotFreeform();
+  currentView = btn.dataset.view;
+  if(currentView==='freeform') layoutFreeform();
+  if(currentView==='timeline') layoutTimeline();
+  if(currentView==='theme') layoutTheme();
+  renderLayout();
+  let frames=0;
+  const iv = setInterval(()=>{ redrawLinks(); frames++; if(frames>36) clearInterval(iv); }, 16);
+});
+
+/* ---------------------------------------------------------
+   Hidden nav menu
+--------------------------------------------------------- */
+const scrim = document.getElementById('scrim');
+const navpanel = document.getElementById('navpanel');
+function openMenu(){ scrim.classList.add('open'); navpanel.classList.add('open'); }
+function closeMenu(){ scrim.classList.remove('open'); navpanel.classList.remove('open'); }
+document.getElementById('menuBtn').addEventListener('click', openMenu);
+scrim.addEventListener('click', closeMenu);
+
+/* ---------------------------------------------------------
+   Box expansion: a stack of apple-ish windows.
+   Each window morphs open from the exact box/node that was
+   clicked (a real rect transition, not a fade), and shows its
+   contents as a small wave-trail canvas — the same dot-grid +
+   curved-link language as the outer saga, at a smaller scale.
+   Opening a nested item pushes a new window on top and sends
+   the one behind it "fullview" (fills the stage, becomes the
+   backdrop for the next level). Breadcrumb in each window's
+   titlebar can jump back to any earlier level.
+--------------------------------------------------------- */
+const winscrim = document.getElementById('winscrim');
+const winlayer = document.getElementById('winlayer');
+let winStack = []; // {title, items, rect, savedRect, fullview, originRect}
+
+function defaultRect(depth){
+  const w = Math.min(560, window.innerWidth*0.55), h = Math.min(400, window.innerHeight*0.55);
+  return { x: window.innerWidth/2 - w/2 + depth*26, y: window.innerHeight/2 - h/2 - 20 + depth*20, w, h };
+}
+
+function openLevel(spec, originEl){
+  if(winStack.length){
+    const top = winStack[winStack.length-1];
+    top.savedRect = {...top.rect};
+    top.fullview = true;
+  }
+  const depth = winStack.length;
+  const r = originEl ? originEl.getBoundingClientRect() : null;
+  const entry = Object.assign({
+    rect: defaultRect(depth), fullview:false, big:false,
+    originRect: r ? {x:r.left, y:r.top, w:r.width, h:r.height} : defaultRect(depth),
+    panX:0, panY:0, zoom:1
+  }, spec);
+  winStack.push(entry);
+  renderWindows(entry);
+}
+
+function openWindowStack(spec, originEl){
+  closeAllWindows();
+  winscrim.classList.add('open');
+  openLevel(spec, originEl);
+}
+
+function popToLevel(index){
+  winStack = winStack.slice(0, index+1);
+  if(!winStack.length){ closeAllWindows(); return; }
+  const top = winStack[winStack.length-1];
+  if(top.savedRect){ top.rect = {...top.savedRect}; top.fullview = false; }
+  renderWindows(null);
+}
+
+function closeAllWindows(){
+  winStack = [];
+  winscrim.classList.remove('open');
+  winlayer.innerHTML = '';
+}
+winscrim.addEventListener('click', ()=>closeAllWindows());
+
+function crumbTrail(index){
+  const trail = ['Boxes'];
+  for(let i=0;i<=index;i++) trail.push(winStack[i].title);
+  return trail;
+}
+
+function dotColor(theme){
+  return theme==='build' ? 'var(--clay)' : theme==='research' ? 'var(--slate)' : theme==='story' ? '#b6935f' : '#9a8f7c';
+}
+
+/* Each group's children live in a fixed "space" — coordinates are
+   computed once and stored on the items themselves, so opening the
+   window, resizing it, or reopening it later never moves anything.
+   Panning/zooming the window changes what you can see of that space,
+   never the space itself — the same rule the outer canvas follows. */
+function ensureSpaceLayout(items){
+  if(items.length && items[0].x !== undefined) return; // already laid out — leave it alone
+  const nodeW = 152, nodeH = 74;
+  const marginX = 96, marginY = 70, usableW = 460, usableH = 220;
+  const n = items.length;
+  items.forEach((it, i)=>{
+    const t = n>1 ? i/(n-1) : 0.5;
+    it.x = marginX + t*usableW;
+    it.y = marginY + usableH/2 + Math.sin(t*Math.PI*1.6 + 0.4) * (usableH*0.42);
+    it.w = nodeW; it.h = nodeH;
+  });
+}
+
+function miniNodeHtml(it, i){
+  if(it.kind === 'media'){
+    return `
+      <div class="mini-node media" data-idx="${i}"
+           style="left:${it.x-it.w/2}px;top:${it.y-it.h/2}px;width:${it.w}px;height:${it.h}px;">
+        <div class="mthumb"><span class="mkind">${it.mediaKind || 'Video'}</span></div>
+        <div class="mbody"><div class="ctitle">${it.title}</div></div>
+      </div>`;
+  }
+  return `
+    <div class="mini-node ${it.children?'opens':''}" data-idx="${i}"
+         style="left:${it.x-it.w/2}px;top:${it.y-it.h/2}px;width:${it.w}px;height:${it.h}px;">
+      <div class="clabel"><span class="dot" style="background:${dotColor(it.theme)}"></span>${it.theme}</div>
+      <div class="ctitle">${it.title}</div>
+      ${it.children ? `<div class="cmeta">${it.children.length} inside</div>` : ''}
+    </div>`;
+}
+
+const WIN_SVG_OFFSET = 1500;
+
+/* A "tree" window is built exactly like the outer saga canvas:
+   a dot-grid world you can pan by dragging empty space and zoom
+   with the wheel, holding boxes that are themselves draggable and,
+   if they hold their own children, clickable to drill further in.
+   It's the same "giant box" mechanic at a smaller scale — not a
+   separate, simpler component. */
+function renderMiniCanvas(entry, bodyEl){
+  const items = entry.items;
+  ensureSpaceLayout(items);
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('class', 'win-links-svg');
+  const paths = [];
+  for(let i=1;i<items.length;i++){
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    const cls = items[i-1].children || items[i].children ? 'link-theme' : 'link-soft';
+    path.setAttribute('class', 'win-link-path '+cls);
+    svg.appendChild(path);
+    paths.push(path);
+  }
+  function redrawMiniLinks(){
+    for(let i=1;i<items.length;i++){
+      const a = items[i-1], b = items[i];
+      const mx=(a.x+b.x)/2, my=(a.y+b.y)/2;
+      const dx=b.x-a.x, dy=b.y-a.y, dist=Math.hypot(dx,dy)||1;
+      const bow = Math.min(36, dist*0.22);
+      const cx = mx - (dy/dist)*bow, cy = my + (dx/dist)*bow;
+      const o = WIN_SVG_OFFSET;
+      paths[i-1].setAttribute('d', `M ${a.x+o} ${a.y+o} Q ${cx+o} ${cy+o} ${b.x+o} ${b.y+o}`);
+    }
+  }
+  redrawMiniLinks();
+
+  const world = document.createElement('div');
+  world.className = 'win-world';
+  world.innerHTML = `<div class="win-dotgrid"></div>` + items.map((it,i)=>miniNodeHtml(it,i)).join('');
+  world.appendChild(svg);
+
+  const stage = document.createElement('div');
+  stage.className = 'win-stage';
+  stage.appendChild(world);
+
+  bodyEl.innerHTML = '';
+  bodyEl.appendChild(stage);
+
+  function applyWorldTransform(){
+    world.style.transform = `translate(${entry.panX}px, ${entry.panY}px) scale(${entry.zoom})`;
+  }
+  applyWorldTransform();
+
+  // pan the space by dragging empty canvas — identical mechanic to the outer stage
+  let panning=false, psx=0, psy=0, pox=0, poy=0, panQueued=false, plx=0, ply=0;
+  stage.addEventListener('pointerdown', (e)=>{
+    panning=true; stage.classList.add('panning');
+    stage.setPointerCapture(e.pointerId);
+    psx=e.clientX; psy=e.clientY; pox=entry.panX; poy=entry.panY;
+  });
+  stage.addEventListener('pointermove', (e)=>{
+    if(!panning) return;
+    plx=e.clientX; ply=e.clientY;
+    if(panQueued) return;
+    panQueued = true;
+    requestAnimationFrame(()=>{
+      panQueued = false;
+      entry.panX = pox + (plx-psx); entry.panY = poy + (ply-psy);
+      applyWorldTransform();
+    });
+  });
+  stage.addEventListener('pointerup', ()=>{ panning=false; stage.classList.remove('panning'); });
+  stage.addEventListener('wheel', (e)=>{
+    e.preventDefault();
+    const delta = -e.deltaY*0.0012;
+    entry.zoom = Math.min(1.8, Math.max(0.45, entry.zoom+delta));
+    applyWorldTransform();
+  }, {passive:false});
+
+  // every node is both draggable (repositions it in the fixed space,
+  // exactly like boxes on the outer canvas) and, if it has children or
+  // is a media item, clickable to open — distinguished by how far the
+  // pointer actually moved.
+  items.forEach((it, i)=>{
+    const nodeEl = world.querySelector(`[data-idx="${i}"]`);
+    let dragging=false, moved=false, sx=0, sy=0, ox=0, oy=0, queued=false, lastX=0, lastY=0;
+    nodeEl.addEventListener('pointerdown', (e)=>{
+      dragging=true; moved=false; nodeEl.setPointerCapture(e.pointerId);
+      sx=e.clientX; sy=e.clientY; ox=it.x; oy=it.y;
+      e.stopPropagation();
+    });
+    nodeEl.addEventListener('pointermove', (e)=>{
+      if(!dragging) return;
+      lastX=e.clientX; lastY=e.clientY;
+      if(Math.abs(lastX-sx) > 3 || Math.abs(lastY-sy) > 3) moved = true;
+      e.stopPropagation();
+      if(queued) return;
+      queued = true;
+      requestAnimationFrame(()=>{
+        queued = false;
+        it.x = ox + (lastX-sx)/entry.zoom; it.y = oy + (lastY-sy)/entry.zoom;
+        nodeEl.style.left = (it.x-it.w/2)+'px'; nodeEl.style.top = (it.y-it.h/2)+'px';
+        redrawMiniLinks();
+      });
+    });
+    nodeEl.addEventListener('pointerup', (e)=>{
+      dragging=false;
+      e.stopPropagation();
+      if(moved) return;
+      if(it.children) openLevel({type:'tree', title:it.title, items:it.children}, nodeEl);
+      else if(it.kind === 'media') openLevel({type: it.mediaKind==='Article'?'article':'video', title:it.title, content:it.content||{}}, nodeEl);
+    });
+  });
+}
+
+/* An article/video leaf isn't a space to arrange things in, so it
+   opens a document/player view instead of a canvas. */
+function renderArticleWindow(entry, bodyEl){
+  const c = entry.content || {};
+  bodyEl.innerHTML = `
+    <div class="article-scroll">
+      <div class="article-hero"><span class="harticle-kind">Article</span></div>
+      <div class="article-body">
+        <div class="article-meta">${c.meta || ''}</div>
+        <h2 class="article-title">${entry.title}</h2>
+        ${(c.paragraphs||[]).map(p=>`<p>${p}</p>`).join('')}
+      </div>
+    </div>`;
+}
+
+function renderVideoWindow(entry, bodyEl){
+  const c = entry.content || {};
+  bodyEl.innerHTML = `
+    <div class="video-wrap">
+      <div class="video-frame"><span class="vplay"><i></i></span></div>
+      <div class="video-caption">
+        <div class="article-meta">${c.duration || 'Video'}</div>
+        <h2 class="article-title" style="font-size:18px;margin-bottom:0;">${entry.title}</h2>
+      </div>
+    </div>`;
+}
+
+function renderWindows(justOpened){
+  // keep existing DOM for windows that already existed, so we don't
+  // interrupt an in-flight rect transition on them
+  const existing = {};
+  winlayer.querySelectorAll('.window').forEach(w => existing[w.dataset.depth] = w);
+
+  winStack.forEach((entry, i)=>{
+    let el = existing[i];
+    if(!el){
+      el = document.createElement('div');
+      el.dataset.depth = i;
+      winlayer.appendChild(el);
+    }
+    delete existing[i];
+    const maxed = entry.fullview || entry.big;
+    el.className = 'window' + (maxed ? ' fullview' : '');
+    el.style.zIndex = 100+i;
+
+    const trail = crumbTrail(i);
+    const crumbHtml = trail.map((t,ti)=>{
+      const isLast = ti===trail.length-1;
+      return `<span class="seg${isLast?' current':''}" data-jump="${ti-1}">${t}</span>` + (isLast? '' : `<span class="sep">/</span>`);
+    }).join('');
+
+    el.innerHTML = `
+      <div class="win-titlebar${maxed?' locked':''}">
+        <div class="win-dots"><span></span><span></span><span></span></div>
+        <div class="win-crumbs">${crumbHtml}</div>
+        ${entry.fullview ? '' : `<button class="win-expand" title="${entry.big ? 'Restore' : 'Expand'}">${entry.big ? '⤡' : '⤢'}</button>`}
+        <button class="win-close" title="Close">×</button>
+      </div>
+      <div class="win-body"></div>
+      ${maxed ? '' : '<div class="win-resize"></div>'}
+    `;
+    const bodyEl = el.querySelector('.win-body');
+    if(entry.type === 'article') renderArticleWindow(entry, bodyEl);
+    else if(entry.type === 'video') renderVideoWindow(entry, bodyEl);
+    else renderMiniCanvas(entry, bodyEl);
+
+    el.querySelectorAll('.win-crumbs .seg').forEach(seg=>{
+      seg.addEventListener('click', ()=>{
+        const jump = parseInt(seg.dataset.jump, 10);
+        if(jump < 0) closeAllWindows(); else popToLevel(jump);
+      });
+    });
+    el.querySelector('.win-close').addEventListener('click', ()=> popToLevel(i-1));
+    const expandBtn = el.querySelector('.win-expand');
+    if(expandBtn) expandBtn.addEventListener('click', ()=> toggleBig(entry, el));
+
+    if(entry === justOpened){
+      // FLIP: start the window at the origin box/node's exact rect,
+      // then release it to its target rect on the next frame so the
+      // browser animates the morph instead of just fading it in.
+      el.classList.add('wmoving');
+      applyRect(el, {...entry, rect: entry.originRect, fullview:false, big:false});
+      void el.offsetWidth; // force layout so the browser registers the start rect
+      requestAnimationFrame(()=>{
+        el.classList.remove('wmoving');
+        applyRect(el, entry);
+      });
+    } else {
+      applyRect(el, entry);
+    }
+
+    if(!maxed){
+      makeWindowDraggable(el, entry);
+      makeWindowResizable(el, entry);
+    }
+  });
+
+  // remove windows that are no longer in the stack (closed via breadcrumb/×)
+  Object.values(existing).forEach(el => el.remove());
+}
+
+function applyRect(el, entry){
+  if(entry.fullview || entry.big){
+    el.style.left='0px'; el.style.top='0px'; el.style.width='100vw'; el.style.height='100vh';
+  } else {
+    el.style.left=entry.rect.x+'px'; el.style.top=entry.rect.y+'px';
+    el.style.width=entry.rect.w+'px'; el.style.height=entry.rect.h+'px';
+  }
+}
+
+/* rAF-throttled drag: only ever one pending style write per frame,
+   so a burst of pointermove events can't pile up and lag. */
+function makeWindowDraggable(el, entry){
+  const bar = el.querySelector('.win-titlebar');
+  let dragging=false, sx=0, sy=0, ox=0, oy=0, queued=false, lastX=0, lastY=0;
+  bar.addEventListener('pointerdown', (e)=>{
+    if(e.target.closest('.win-close') || e.target.closest('.win-expand') || e.target.closest('.seg')) return;
+    dragging=true; bar.setPointerCapture(e.pointerId);
+    el.classList.add('wmoving');
+    sx=e.clientX; sy=e.clientY; ox=entry.rect.x; oy=entry.rect.y;
+  });
+  bar.addEventListener('pointermove', (e)=>{
+    if(!dragging) return;
+    lastX=e.clientX; lastY=e.clientY;
+    if(queued) return;
+    queued = true;
+    requestAnimationFrame(()=>{
+      queued = false;
+      entry.rect.x = ox + (lastX-sx);
+      entry.rect.y = oy + (lastY-sy);
+      el.style.left=entry.rect.x+'px'; el.style.top=entry.rect.y+'px';
+    });
+  });
+  bar.addEventListener('pointerup', ()=>{ dragging=false; el.classList.remove('wmoving'); });
+}
+
+function makeWindowResizable(el, entry){
+  const grip = el.querySelector('.win-resize');
+  if(!grip) return;
+  let resizing=false, sx=0, sy=0, ow=0, oh=0, queued=false, lastX=0, lastY=0;
+  grip.addEventListener('pointerdown', (e)=>{
+    resizing=true; grip.setPointerCapture(e.pointerId);
+    el.classList.add('wmoving');
+    sx=e.clientX; sy=e.clientY; ow=entry.rect.w; oh=entry.rect.h;
+    e.stopPropagation();
+  });
+  grip.addEventListener('pointermove', (e)=>{
+    if(!resizing) return;
+    lastX=e.clientX; lastY=e.clientY;
+    e.stopPropagation();
+    if(queued) return;
+    queued = true;
+    requestAnimationFrame(()=>{
+      queued = false;
+      entry.rect.w = Math.max(340, ow + (lastX-sx));
+      entry.rect.h = Math.max(260, oh + (lastY-sy));
+      el.style.width=entry.rect.w+'px'; el.style.height=entry.rect.h+'px';
+    });
+  });
+  grip.addEventListener('pointerup', (e)=>{
+    resizing=false; el.classList.remove('wmoving'); e.stopPropagation();
+    // no relayout here on purpose — the space's contents are fixed;
+    // resizing the window only changes how much of it is visible.
+  });
+}
+
+/* Manual maximize/restore, independent of the automatic "fullview"
+   a window gets pushed into when a child window opens on top of it. */
+function toggleBig(entry, el){
+  if(entry.fullview) return;
+  if(!entry.big){
+    entry.smallRect = {...entry.rect};
+    entry.big = true;
+  } else {
+    entry.rect = entry.smallRect ? {...entry.smallRect} : defaultRect(winStack.indexOf(entry));
+    entry.big = false;
+  }
+  renderWindows(null); // rebuild this window through the normal path so titlebar/resize/border-radius all follow the maxed state consistently
+}
+
+/* ---------------------------------------------------------
+   Boot
+--------------------------------------------------------- */
+loadSaga('recruiter');
+snapshotFreeform();
+</script>
+</body>
+</html>
