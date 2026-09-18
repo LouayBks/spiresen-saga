@@ -2,6 +2,8 @@
 
 Format per `DOC/templates/spec_design_template.md` (ADR-006). Owns the create/delete actions themselves for Nodes and Links — cites `box-sizing.md` for the tier picker, `content-authoring.md` for per-kind content authoring, and `alternate-views.md` for view-scoping, rather than redeciding any of those. Fills a real gap: none of the other four Stage-A specs actually define how a Node or Link comes into existence or gets removed.
 
+**Revision note (2026-09-18):** every rule below applies inside a `group` Node's nested Map exactly as written, not just at the top level (`application_architecture.md`'s correction, `window-system.md`) — "the active View"/"the Map" throughout means whichever Map's window the owner currently has open. Creating a `group`-kind Node here is what brings its nested Map into existence — it starts empty, populated by this same creation flow reused one level down.
+
 ## Objective
 
 Define how Nodes and Links get created and deleted — `boxes-plan.md` names link creation loosely ("drag from one box's edge to another") and mentions a link create/delete endpoint in passing, but specifies no Node-creation UX, no deletion mechanic for either entity, and no uniqueness constraints. `alternate-views.md`'s BHV-6 already assumes Node creation as an event without defining what triggers it — this spec is that missing trigger.

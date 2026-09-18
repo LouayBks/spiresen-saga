@@ -6,6 +6,8 @@ Format per `DOC/templates/spec_design_template.md` (ADR-006). Owns per-view posi
 
 **Revision note (2026-09-18, part 2):** updated for `naming.md`'s further rename — the individual canvas item is now **Node** (schema/code term), not "Box." See `naming.md` for the full rename table.
 
+**Revision note (2026-09-18, part 3):** this spec's rules apply to *any* Map, not just the top-level one. A `group`-kind Node contains its own nested Map (`application_architecture.md`'s correction, `window-system.md`) — that nested Map gets the same ≤3-View system this spec already defines generically. Nothing below needed rewording; "a Map" already meant any Map.
+
 ## Objective
 
 Replace `boxes-plan.md`'s auto-computed Timeline/Theme layout engine — confirmed speculative scope added during mockup drafting, not a real requirement — with the actual requirement: up to 3 owner-arranged Views per Map, each a distinct arrangement of the same nodes' positions and links.
