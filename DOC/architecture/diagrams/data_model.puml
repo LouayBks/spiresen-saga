@@ -8,6 +8,11 @@ enum Role {
   editor
   viewer
 }
+enum Visibility {
+  private
+  unlisted
+  public
+}
 enum LinkType {
   theme
   timeline
@@ -25,6 +30,8 @@ class Membership {
 class Map {
   id : string
   name : string [0..1] "root only"
+  visibility : Visibility "root only, default private"
+  publishedAt : datetime [0..1] "only while public"
   nodeCount : int "max 50"
   viewCount : int "1..3"
 }
@@ -43,6 +50,7 @@ class Node {
   positions : Map<viewId, Position>
   --derived, drive inference--
   childCount : int
+  imageCount : int
   hasArticle : bool
   --attachments, any node--
   note : string [0..1]
@@ -101,5 +109,6 @@ Gallery .. XOR
 Article .. XOR
 View .. LAYOUT
 Membership ..> Role
+Map ..> Visibility
 Link ..> LinkType
 @enduml

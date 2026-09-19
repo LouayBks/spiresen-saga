@@ -19,6 +19,9 @@ package "PK = MAP#{mapId}   (ONE Query = open a Map: tiles only)" {
     name (root only)
     nodeCount
     viewCount
+    visibility (root only)
+    publishedAt (only while public)
+    GSI1PK, GSI1SK (only while public)
   }
   class "SK = VIEW#{viewId}" as M2 {
     name
@@ -55,7 +58,14 @@ package "PK = CONTENT#{nodeId}   (ONE Query = open a node)" {
   }
 }
 
-package "PK = MAP#ALL   (constant key: list all Maps, no Scan)" {
+package "GSI1 (sparse): GSI1PK = MAP#PUBLIC   (gallery: newest-published first, no Scan)" {
+  class "GSI1SK = {publishedAt}#{mapId}" as G1 {
+    name (projected)
+    only public Maps
+  }
+}
+
+package "PK = MAP#ALL   (constant key: ops list of all Maps, no Scan)" {
   class "SK = MAP#{rootMapId}" as D1 {
     ownerSub
     createdAt
@@ -67,4 +77,5 @@ M3 ..> C1 : full text and links,\nfetched on open
 M3 ..> C2 : only when hasArticle
 U2 ..> M1 : root Map\n(nested Map id = node id)
 D1 ..> M1 : name lives in META only
+M1 ..> G1 : index entry exists\nonly while public
 @enduml

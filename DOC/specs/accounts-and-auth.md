@@ -71,7 +71,7 @@ Decide how a signed-in user becomes tied to Map ownership, whether the owner/edi
 ## Open questions
 
 - Whether/how a Google profile photo is stored or displayed — not needed for v1's read-only identity display (BHV-5 covers text fields only); left for whoever eventually wants an avatar.
-- Map visibility (public/private/unlisted) — inherited open item from `application_architecture.md`'s "Open items / TBD," not one of this ticket's tasks, still unresolved.
+- Map visibility (public/private/unlisted) — resolved in `map-visibility.md` (2026-09-19), not here: default `private`, three states, governs reading only. Nothing in this spec's write-authorization or membership decisions changes.
 - What the eventual sharing flow looks like once CON-3 is revisited (an invite step, how a pending invite is represented, etc.) — no ticket assigned yet; this spec only establishes that v1 deliberately stops short of it. Multi-Map ownership itself (CON-4) is not part of this open question — that's resolved for v1, above.
 - The exact nav UI/UX for switching between and creating a user's multiple Maps ("Your Maps," the "+ New Map" affordance) — this spec fixes the behavioral contract (BHV-7) and where it lives (nav, not account settings), not its visual design.
 - **The concrete storage shape for everything decided here (how a User is keyed, where a Map's display name lives, how the provisioning atomicity requirement is implemented) is explicitly left to #36** — flagged here, not as a gap in this spec, but so #36's author knows CON-1/CON-6/CON-7 are binding requirements handed down from this ticket, not free design choices.

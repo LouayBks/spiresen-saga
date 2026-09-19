@@ -1,6 +1,6 @@
 # Data cartography — #36 data foundation
 
-**Status: proposal, not yet accepted.** Drafted 2026-09-19 for ticket #36, before implementation. The physical layout's rationale and the options rejected are in [`ADR-007`](../../ADR/ADR-007-physical-data-layout.md) (also *Proposed*); this doc applies it entity by entity. It has not been through the AW-4 `plan-reviewer` pass, and `application_architecture.md` (the schema source of truth) is **not** updated until both are accepted — at which point the physical layout moves there and this doc keeps the cross-cutting map (entities, access patterns, invariants, limits).
+**Status: proposal, not yet accepted.** Drafted 2026-09-19 for ticket #36, before implementation. The physical layout's rationale and the options rejected are in [`ADR-007`](../../ADR/ADR-007-physical-data-layout.md) (also *Proposed*, amended 2026-09-19 for visibility); this doc applies it entity by entity. Map visibility (private / unlisted / public) is specified in [`map-visibility.md`](../specs/map-visibility.md). It has not been through the AW-4 `plan-reviewer` pass, and `application_architecture.md` (the schema source of truth) is **not** updated until both are accepted — at which point the physical layout moves there and this doc keeps the cross-cutting map (entities, access patterns, invariants, limits).
 
 **What this is:** one place that maps every piece of data the app stores — what it is, where it lives, who can touch it, what reads and writes it, and what keeps it consistent. **What it is not:** a spec. Behavior lives in `DOC/specs/*.md` (ADR-006); this doc cites spec rule IDs and turns them into storage requirements. Where a spec still asserts a PK/SK shape, this doc supersedes it (per ADR-006's amendment).
 
@@ -26,17 +26,18 @@ Reading notes:
 |---|---|---|---|---|
 | User | Cognito `sub` (never email) | itself | `createdAt` only — email/name come from JWT claims, not stored | accounts-and-auth CON-1 |
 | Membership | (`sub`, root Map id) | User ↔ root Map | `role` (`owner` only in v1), `joinedAt` | accounts-and-auth CON-3 |
-| Map | root: minted id; nested: its parent Node's id | Membership (root) / parent Node (nested) | `name` (root only), `nodeCount`, `viewCount` | naming, window-system CON-3/4 |
+| Map | root: minted id; nested: its parent Node's id | Membership (root) / parent Node (nested) | `name` (root only), `nodeCount`, `viewCount`; root only: `visibility` (`private` default), `publishedAt` (only while public) | naming, window-system CON-3/4, map-visibility |
 | View | minted id | Map | `name`, `order`, `linkCount` | alternate-views |
 | Node **tile** | `{parentMapId}.{shortId}` | Map | canvas fields only: `title`, `date`, `size {w,h}`, `positions {viewId → {x,y}}`, `coverImage`, `preview`, `excerpt`, and derived `childCount`, `imageCount`, `hasArticle` | box-sizing, content-authoring, alternate-views |
 | Node **detail** | the owning Node's id | Node | `body`, `note`, `urls[]`, `images[]` (gallery); created on first write, absent = empty | content-authoring |
 | Link | unordered node pair + View | View | `nodeA`, `nodeB` (sorted), `type`, `label` | node-link-lifecycle |
 | Article body | the owning Node's id | Node | `markdown` | content-authoring CON-3, CON-5 |
-| Map directory entry | root Map id | itself | `ownerSub`, `createdAt` — immutable pointer, nothing else | ADR-007 D2 |
+| Map directory entry | root Map id | itself | `ownerSub`, `createdAt` — immutable pointer, nothing else; ops-side only, no v1 consumer | ADR-007 D2 |
 
 **Field notes**
 - `size`: two integers, min 1, max 12 (tunable constant), default 1×1, identical across Views (box-sizing CON-1/CON-2). `positions` values use the same grid unit; grid layout snaps at render time and stored freeform positions are only overwritten by an explicit drag.
 - **Tile vs. detail** (ADR-007): the tile holds only what the canvas renders, every field individually capped, so a Map load is bounded. Everything else — full text, note, URLs, gallery — is in the detail, fetched only when a node is opened. `excerpt` is the first 200 characters of `body`, `imageCount` is the length of `images`, `hasArticle` mirrors the article item, `childCount` mirrors the nested Map's Node count; these four are the only derived copies and are written only inside the transaction that writes their source.
+- `visibility`: on the **root** Map only (a nested Map inherits, and never carries it). Governs reading, never writing (map-visibility CON-3/CON-4). While `public`, the Map's META also carries the gallery-index keys and `publishedAt`; they are removed when it leaves `public`.
 - `preview`: at most one per node — the first recognised-provider URL (YouTube in v1), fetched once via oEmbed at attach time. `urls` is a plain list of strings with no count cap.
 - `images`: at most 10 `{s3Key, caption?}`. Bytes never touch Lambda (content-authoring CON-2); only keys are stored.
 - `type`: `theme | timeline | soft`. Presentation label only — it drives no layout or logic. The value set is inconsistent across `boxes-plan.md` (which also says `causal`) and needs a spec fix; the store treats it as a validated string so changing the set needs no migration.
@@ -48,7 +49,7 @@ Reading notes:
 
 Source: [`diagrams/physical_layout.puml`](diagrams/physical_layout.puml).
 
-One table, generic key attributes `PK` and `SK` (both strings), on-demand billing, point-in-time recovery on, deletion protection on, no GSI and **no LSI** in v1. A TTL attribute is reserved for a future trash bin (#45), unused now.
+One table, generic key attributes `PK` and `SK` (both strings), on-demand billing, point-in-time recovery on, deletion protection on, **one sparse GSI** (`GSI1`, the public gallery, below) and **no LSI**. A TTL attribute is reserved for a future trash bin (#45), unused now.
 
 | Item | PK | SK |
 |---|---|---|
@@ -61,12 +62,15 @@ One table, generic key attributes `PK` and `SK` (both strings), on-demand billin
 | Node detail | `CONTENT#{nodeId}` | `DETAIL` |
 | Article body | `CONTENT#{nodeId}` | `ARTICLE` |
 | Map directory entry | `MAP#ALL` | `MAP#{rootMapId}` |
+| Public gallery index (**GSI1**, sparse, on the root META) | `GSI1PK = MAP#PUBLIC` | `GSI1SK = {publishedAt}#{mapId}` — present only while `visibility = public`; projects `name` |
 
 - **One Query opens a Map**: `PK = MAP#{mapId}` returns META, all Views, Node **tiles** and Links together (alternate-views CON-4, ticket "no N+1") — and nothing heavier. A nested Map is the same shape one level down, with `mapId` = the group Node's id.
 - **One Query opens a node**: `PK = CONTENT#{nodeId}` returns the detail and, by CON-8 exclusivity, at most the article beside it.
 - **Parent lookup from an id needs no read**: split at the last dot. Node `r.a.b` is tile `NODE#b` in partition `MAP#r.a`; the root Map is the first segment `r`. Content items are keyed by node id, so a content write authorizes off the same first segment.
 - **Positions live in the tile**, so a drag is one narrow `SET positions.#view` on a ~1 KB item (alternate-views' single-write requirement) and item count never scales with nodes × views. Trade-off accepted: deleting a View cannot atomically strip its position from every tile. The View item is deleted first; leftover `positions[viewId]` entries and Links are best-effort cleanup, harmless because readers ignore unknown viewIds and viewIds are never reused.
-- **`MAP#ALL` is a constant-key directory of immutable pointers** — "list every Map" is a paginated `Query`, never a Scan. It holds no name and no mutable field (CON-6). No v1 endpoint reads it. Filtering by visibility, when decided, is a sparse GSI on META, not new attributes here.
+- **`MAP#ALL` is a constant-key directory of immutable pointers** — "list every Map, private included" is a paginated `Query`, never a Scan. It holds no name and no mutable field (CON-6). No v1 endpoint reads it and, now that the gallery has its own index, it serves no v1 use case (ADR-007 D3): keep it as the ops-side list or drop it.
+- **The public gallery is `GSI1`, a sparse index on the root META with a constant key** (`MAP#PUBLIC`): only public Maps carry the two index attributes, so the gallery is a paginated descending `Query` that touches nothing else, and DynamoDB maintains the index — no second write, no drift. Making a Map public or not is one `UpdateItem` on its META.
+- **Every read is authorized before any Map content is loaded**: root id (first dot segment) → one consistent `GetItem` on the root META → visibility decides (AP-19).
 - **The application never scans** — enforced by leaving `dynamodb:Scan` out of the Lambda's IAM policy.
 
 ## 4. Access patterns
@@ -74,8 +78,8 @@ One table, generic key attributes `PK` and `SK` (both strings), on-demand billin
 | # | Pattern | Operation | Notes |
 |---|---|---|---|
 | AP-1 | First authenticated request provisions a User | `TransactWriteItems` | Puts profile (`attribute_not_exists`), Membership, Map META (`nodeCount = 2`), default View (`linkCount = 1`), 2 placeholder tiles (+ their details if they carry body copy), 1 Link, and the `MAP#ALL` directory entry — at most 10 items, each touched once (a transaction cannot act on one item twice). A concurrent duplicate fails the profile condition; the handler re-reads and returns the existing Map (accounts-and-auth CON-7). |
-| AP-2 | List "Your Maps" | `Query USER#{sub}` `begins_with MEMBER#`, then `BatchGetItem` of each META | Two calls, paginated at 100. The name lives only in META — never copied onto Membership or the directory (CON-6). |
-| AP-3 | Open a Map | one `Query PK = MAP#{id}` | Returns tiles only. Also used for nested Maps and for BHV-6 of window-system. |
+| AP-2 | List "Your Maps" | `Query USER#{sub}` `begins_with MEMBER#`, then `BatchGetItem` of each META | Two calls; the API pages at about 20 Maps (there is no cap on Maps per user), retrying unprocessed keys. META supplies name, counters and `visibility` (map-visibility BHV-11); no tiles or details are read. The name lives only in META — never copied onto Membership or the directory (CON-6). Time-sortable ids give creation order for free. |
+| AP-3 | Open a Map | one `Query PK = MAP#{id}` | Returns tiles only. Also used for nested Maps and for BHV-6 of window-system. Runs only after AP-19 has allowed the read. |
 | AP-4 | Authorize any write | one consistent `GetItem USER#{sub} / MEMBER#{rootId}` | Root id = first dot segment of the id in the request; applies to content writes too. |
 | AP-5 | Drag a Node | `UpdateItem SET positions.#viewId` on the tile | Debounced on pointer-up. ~1 KB item. |
 | AP-6 | Create a Node | `TransactWriteItems` | Put blank tile (with a `positions` entry for every existing View — one small Query of the Views first; no detail item yet, CON-5), Update META `nodeCount + 1` (condition `< 50`), ConditionCheck on the parent tile exists, and when nested, Update the parent tile `childCount + 1` (condition: `imageCount = 0`, `hasArticle = false`). |
@@ -90,7 +94,10 @@ One table, generic key attributes `PK` and `SK` (both strings), on-demand billin
 | AP-15 | Edit title / date / size / cover | `UpdateItem` on the tile | Single item, no transaction. |
 | AP-16 | Edit body | `TransactWriteItems` when the excerpt changes, else `UpdateItem` | `DETAIL` `body` + tile `excerpt` together. |
 | AP-17 | Edit note / urls | `UpdateItem` on `DETAIL` | Single item. Attaching the first recognised-provider URL also sets the tile `preview` (transaction). |
-| AP-18 | List all Maps | `Query PK = MAP#ALL` | Not exposed in v1 (ADR-007 D2); paginated, never a Scan. |
+| AP-18 | List all Maps (ops) | `Query PK = MAP#ALL` | Not exposed in v1 (ADR-007 D2); paginated, never a Scan. |
+| AP-19 | Authorize a read (any Map, Node or content, any depth) | one consistent `GetItem` on the root META, then at most one membership `GetItem` | `unlisted`/`public` → allow, signed in or not. `private` → allow a member, otherwise answer 404 (never 403) so existence isn't revealed (map-visibility CON-6, CON-9). A refused read costs one or two single-item reads, never a Map load. |
+| AP-20 | Browse the public gallery | `Query GSI1` on `GSI1PK = MAP#PUBLIC`, descending | Public Maps only, newest-published first, paged (map-visibility BHV-8). Eventually consistent; it projects `name`, so no per-Map fetch. Not a scan. |
+| AP-21 | Change a Map's visibility | `UpdateItem` on the root META | To `public`: set `visibility`, `publishedAt` and the index keys; leaving `public`: remove the last three. Owner only; rejects a nested Map (map-visibility BHV-2/3/12). |
 
 There is **no Scan** anywhere in v1.
 
@@ -109,6 +116,12 @@ There is **no Scan** anywhere in v1.
 | Size is `w,h` integers in range | box-sizing CON-2 | request validation (Pydantic), one constant for the max |
 | Every Map always has ≥ 1 View | alternate-views CON-1 | created with the Map; last-View delete rejected |
 | Map name is one canonical value | accounts-and-auth CON-6 | stored only in root META; never denormalized onto Membership or the `MAP#ALL` directory |
+| A Map's visibility is exactly one of three values, default `private`, on the root only | map-visibility CON-1/CON-2 | always written at creation; request validation rejects other values and rejects a nested Map |
+| A private Map's existence is not revealed to non-members | map-visibility CON-6 | AP-19 answers 404 before any content read |
+| A refused read never loads the Map | map-visibility CON-9 | AP-19 runs first, on the root META alone |
+| Only public Maps are in the gallery | map-visibility CON-7 | the index keys exist only while `visibility = public`, and are removed in the same `UpdateItem` that changes it |
+| Visibility never grants write | map-visibility CON-4 | write routes use AP-4 only; AP-19 is read-only |
+| Root Map ids are unguessable | map-visibility CON-5 | server-side CSPRNG ids, never derived from a name/email/counter |
 | The application never scans | ADR-007 D2 | the Lambda IAM policy omits `dynamodb:Scan` |
 | A Map load is bounded regardless of content | ADR-007 criterion A | tile fields individually capped; bodies, URLs and galleries live only in the detail |
 | Only `owner` memberships exist in v1 | accounts-and-auth CON-3 | provisioning code path is the only writer |
@@ -122,7 +135,9 @@ There is **no Scan** anywhere in v1.
 - **New View vs. concurrent node create** can leave a Node without a position in the new View. Readers fall back to the Node's position in another View; a new View is seeded by copying the active View's positions.
 - **Write cost**: DynamoDB bills a write on the whole item size, so the tile stays small (§7 caps) — that is the reason `positions` lives on the tile (~1 KB) and not on a shared View item that would grow with every Node, and the reason full text lives in the detail. Transactions cost twice the write units; plain `UpdateItem` is used wherever one item is enough (AP-5, AP-12, AP-15, AP-17).
 - **A transaction cannot act on the same item twice.** Any operation that would update one item in two ways (e.g. two nodes incrementing one `nodeCount`) must be folded into a single update.
-- **Testing**: `moto` (TS-2) is the test double, but its fidelity on `TransactWriteItems` condition failures is exactly the risk TS-5 names. Add a small set of hand-run checks against a real dev table for AP-1, AP-6, AP-7 and AP-9.
+- **Testing**: `moto` (TS-2) is the test double, but its fidelity on `TransactWriteItems` condition failures is exactly the risk TS-5 names. Add a small set of hand-run checks against a real dev table for AP-1, AP-6, AP-7 and AP-9. **AP-20 is the first GSI query, and `moto`'s GSI-pagination gap (GitHub #7725, TS-5) applies to it directly** — the gallery's paging and ordering must be verified on the real dev table, not only under `moto`.
+- **The gallery is eventually consistent; opening a Map is not.** A privatized Map's name can linger in the gallery for moments, but AP-19 re-checks the root META with a consistent read, so following the entry fails (map-visibility BHV-9). Any edge cache in front of the gallery must keep a TTL in the same brief range.
+- **One extra single-item read per read request** (AP-19) is the price of never loading a private Map for an unauthorized caller.
 
 ## 7. Limits
 
@@ -144,6 +159,7 @@ All are constants in one settings module — tunable without a schema change.
 | Article markdown | 100K chars | proposal; far under the 400 KB item limit |
 | Nesting depth | no cap | window-system decision; key-length limits are nowhere near |
 | Image upload | 10 MB, jpg/png/webp | content-authoring CON-1 |
+| Page size (My Maps, gallery) | about 20 | proposal; keeps each page small |
 
 ## 8. Identifiers
 
@@ -155,9 +171,9 @@ All are constants in one settings module — tunable without a schema change.
 
 1. Cognito JWT → `sub` (never email).
 2. First request for an unknown `sub` → AP-1.
-3. Any write: parse the target id → root Map id (first dot segment) → AP-4 consistent read of the Membership → 403 if absent.
+3. Any **write**: parse the target id → root Map id (first dot segment) → AP-4 consistent read of the Membership → 403 if absent.
 4. v1 has only `owner`, so this is a pure existence check; role branching stays inert until a sharing feature exists (CON-3).
-5. Reads of public content stay unauthenticated; Map visibility (public/private/unlisted) is an open item and not decided here.
+5. **Reads follow AP-19**, not the write path: `unlisted`/`public` Maps are readable by anyone including anonymous callers; `private` ones only by members, and a non-member gets 404. Visibility governs reading only — it never widens write access (map-visibility CON-4).
 
 This path is the "auth-allowlist" and "cross-slice-authorization" high-risk area (AW-6): implementing it needs the AW-4 fresh-context plan review first.
 
@@ -171,7 +187,7 @@ This path is the "auth-allowlist" and "cross-slice-authorization" high-risk area
 
 ## 11. Infrastructure impact (human applies — AW-24)
 
-Add to the `api` Terraform module: the table (`PAY_PER_REQUEST`, point-in-time recovery, deletion protection, hash key `PK`, range key `SK`), a Lambda IAM policy scoped to that table's ARN (`GetItem`, `PutItem`, `UpdateItem`, `DeleteItem`, `Query`, `BatchGetItem`, `BatchWriteItem` — `TransactWriteItems` is authorized through the underlying write actions; **deliberately no `Scan`**, ADR-007 D2), a `TABLE_NAME` environment variable, and an output. Claude writes the Terraform; a human runs `plan`/`apply`.
+Add to the `api` Terraform module: the table (`PAY_PER_REQUEST`, point-in-time recovery, deletion protection, hash key `PK`, range key `SK`, and the sparse `GSI1` on `GSI1PK`/`GSI1SK` projecting `name`), a Lambda IAM policy scoped to that table's ARN (`GetItem`, `PutItem`, `UpdateItem`, `DeleteItem`, `Query`, `BatchGetItem`, `BatchWriteItem` — `TransactWriteItems` is authorized through the underlying write actions; **deliberately no `Scan`**, ADR-007 D2 — plus `Query` on the `GSI1` index ARN), a `TABLE_NAME` environment variable, and an output. Claude writes the Terraform; a human runs `plan`/`apply`.
 
 ## 12. Open items
 
@@ -181,10 +197,11 @@ Add to the `api` Terraform module: the table (`PAY_PER_REQUEST`, point-in-time r
 3. `LinkType` value set (`theme | timeline | soft` vs. `causal`) — spec inconsistency to resolve.
 4. Confirm the proposed limits marked "proposal" in §7.
 5. Whether "+ New Map" seeds the two placeholders like first login (currently assumed yes).
-6. Map visibility (public/private/unlisted) — inherited open item.
+6. ~~Map visibility~~ — specified in `map-visibility.md` (private / unlisted / public, default private). Still open there: owner attribution in the gallery, moderation/takedown for public Maps, search-engine indexing, and link rotation for `unlisted`.
+6a. Keep or drop the `MAP#ALL` ops directory now that the gallery has `GSI1` (ADR-007 D3) — the owner's call.
 7. Amend `boxes-plan.md` (§2 schema, §4 tiers, §7a) — flagged by the specs' "updates once accepted" notes, not done here.
 
 ## 13. Traceability
 
-`ADR-007` (physical layout, constant-key collections, no Scan) · `naming.md` CON-1/CON-3 (words) · `box-sizing.md` CON-1..3 (size) · `content-authoring.md` CON-2, CON-3, CON-7..12 (content, previews) · `alternate-views.md` CON-1..5 (Views, positions, Links) · `node-link-lifecycle.md` CON-1..6 (create/delete, Link rules) · `window-system.md` CON-3/4/6 (nested Map, derived layout) · `accounts-and-auth.md` CON-1..7 (identity, membership, provisioning).
+`ADR-007` (physical layout, constant-key collections, no Scan) · `naming.md` CON-1/CON-3 (words) · `box-sizing.md` CON-1..3 (size) · `content-authoring.md` CON-2, CON-3, CON-7..12 (content, previews) · `alternate-views.md` CON-1..5 (Views, positions, Links) · `node-link-lifecycle.md` CON-1..6 (create/delete, Link rules) · `window-system.md` CON-3/4/6 (nested Map, derived layout) · `accounts-and-auth.md` CON-1..7 (identity, membership, provisioning) · `map-visibility.md` CON-1..11 (visibility, gallery, read authorization).
 

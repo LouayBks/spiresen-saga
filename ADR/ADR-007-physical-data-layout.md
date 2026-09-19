@@ -139,7 +139,7 @@ Source: [`DOC/architecture/diagrams/physical_layout.puml`](../DOC/architecture/d
 
 - **Rule:** every read is a `GetItem`, `BatchGetItem` or `Query` on a key derivable from the request or from a constant. **The application never scans.** This is enforced, not just intended: the Lambda's IAM policy omits `dynamodb:Scan`. A future need to enumerate something gets a key design, not a scan.
 - **Constant-key collections are allowed, on one condition: they hold immutable pointers only.** The first is **`PK = MAP#ALL`, `SK = MAP#{rootMapId}`**, written in the first-login/new-Map transaction and carrying only `ownerSub` and `createdAt`. It gives "list every Map" (admin, a future public gallery or landing-page showcase) as a paginated `Query` on a known key. Because the item is immutable, the hot-key concern is limited to creates and deletes, and no second copy of the Map name exists (CON-6) — names are always read from `META`, batched across partitions. No v1 endpoint reads the directory; it exists so the capability needs no migration.
-- **What would change this:** if a listing must be filtered (e.g. by visibility, still an open item), the answer is a sparse GSI on `META`, not adding mutable attributes to `MAP#ALL`. If `MAP#ALL` traffic ever approached a partition's limits, the key is sharded (`MAP#ALL#{n}`) — neither is v1.
+- **What would change this:** if a listing must be filtered (e.g. by visibility), the answer is a sparse GSI on `META`, not adding mutable attributes to `MAP#ALL` — this happened once visibility was specified; see the 2026-09-19 amendment (D3) below. If `MAP#ALL` traffic ever approached a partition's limits, the key is sharded (`MAP#ALL#{n}`) — neither is v1.
 - **No local secondary index, ever**, so no 10 GB item-collection cap applies to any partition.
 
 ## Consequences and limitations
@@ -153,3 +153,28 @@ Source: [`DOC/architecture/diagrams/physical_layout.puml`](../DOC/architecture/d
 - **Field caps are now schema constants.** The tile caps (title, date, excerpt, preview) are what bound the Map load; raising the 50-node cap or a tile cap re-opens the worst-case arithmetic in criterion A.
 - **`MAP#ALL` is built but unused in v1.** That is a deliberate, small carrying cost (one extra item per Map) in exchange for not needing a backfill later; revisit if it is still unread when visibility is decided.
 - **Re-evaluate if** the per-Map node cap rises substantially, if a tile field grows large enough to threaten the Map-load bound, or if measured Map-load payloads show the split is not paying for itself.
+
+## Amendment (2026-09-19): visibility and the public gallery (D3)
+
+**Trigger:** `DOC/specs/map-visibility.md` (three visibilities — `private`, `unlisted`, `public` — default `private`; a public gallery; anonymous read of unlisted/public Maps). This is the "filtering a listing → sparse GSI" case D2 anticipated, now real. It supersedes the earlier "no GSI in v1": there is exactly one, sparse, GSI.
+
+**Gallery options considered** (each judged against `map-visibility.md` CON-7/CON-9/CON-10):
+- **Query `MAP#ALL` and filter by visibility.** Rejected: every page evaluates (and is billed for) all Maps, public or not; a page of 100 entries may hold three public ones, so paging is wasteful and unpredictable, and it needs a mutable visibility copy on the directory item, breaking D2's immutable-pointer rule.
+- **Wildcard membership items (`USER#PUBLIC` / `MEMBER#{mapId}`).** Rejected: makes visibility implicit (its state is the presence of another item), cannot express `unlisted` without a second wildcard, and conflates membership with visibility (`map-visibility.md` CON-3).
+- **A scan.** Forbidden by D2.
+- **A sparse GSI on the Map's META with a constant partition key** — chosen.
+
+**D3 — the layout**
+- The **root** Map's META gains `visibility` (`private | unlisted | public`, always present, default `private`). A nested Map's META never carries it (`map-visibility.md` CON-2); the Map's own Query returns it, so the UI gets it for free (CON-11).
+- **`GSI1`**, sparse: `GSI1PK = "MAP#PUBLIC"` (a constant key — the owner's dummy-key idea, applied where it earns its keep) and `GSI1SK = {publishedAt}#{mapId}`. These two attributes exist on a META **only while it is `public`**; DynamoDB maintains the index, so there is no second write and no drift. The index projects `name` (a projection is maintained by DynamoDB, not a hand-kept copy, so `accounts-and-auth.md` CON-6 still holds). The gallery is a paginated descending `Query` on `MAP#PUBLIC`, newest-published first.
+- **Changing visibility is one `UpdateItem` on the root META** (CON-10): to `public` it sets `visibility`, `publishedAt`, `GSI1PK`, `GSI1SK`; leaving `public` it removes the last three. It must reject a nested Map.
+- **Read authorization order** (CON-9): from any request id take the first dot segment (the root Map id) → `GetItem` on its META with a **consistent read** → if `visibility` is `unlisted` or `public`, allow; if `private`, an authenticated caller needs a membership (`GetItem`, as AP-4) → otherwise answer 404 (CON-6) → only then run the Map or content `Query`. A refused read costs one or two single-item reads, never a Map load. Writes keep the membership-only path (CON-4).
+- **`MAP#ALL` is unchanged from D2** (immutable pointer directory, unread in v1) but no longer serves any v1 use case — the gallery runs off `GSI1`. It is kept as the ops-side list of every Map, private ones included; drop it if it is still unused when the gallery ships.
+
+**Consequences**
+- **The gallery is eventually consistent** (a GSI cannot be read consistently): after a Map is made non-public its name can linger in the listing for moments. Opening it re-checks META consistently, so nothing beyond the name is exposed in that window, matching `map-visibility.md`'s revocation rule. Any edge cache put in front of the gallery must keep a TTL in the same "brief" range.
+- **One extra single-item read per read request** (the visibility check). That is the price of never loading a private Map for an unauthorized caller.
+- **Write amplification is confined to public Maps:** a rename or visibility change on a public Map also writes the index entry. Non-public Maps pay nothing.
+- **A constant GSI partition key concentrates the gallery's writes and reads on one key.** Writes happen only on publish, unpublish and rename of a public Map; reads are paged and cacheable. At v1 volume this is far below a partition's limits; if it ever were not, shard the constant (`MAP#PUBLIC#{n}`).
+- **`moto`'s GSI-pagination gap (GitHub #7725) is exactly the risk ADR-003 / TS-5 name, and this is the first GSI it applies to.** The gallery's paging and ordering must be verified against the real dev table, not only against `moto`.
+- **Infrastructure:** the table needs the GSI, and the Lambda's IAM policy must allow `Query` on the index ARN as well as the table; `Scan` stays excluded.
