@@ -131,7 +131,7 @@ flowchart TD
 
 | ID | Rule | Surface | Notes |
 |---|---|---|---|
-| AW-11 | Every non-draft PR routes through the GitHub Action automatically — not opt-in per PR. A draft PR is re-evaluated once it's marked ready for review (the workflow's `ready_for_review` trigger), but one merged while still draft would never get reviewed — a deliberate cost trade-off (drafts iterate heavily), not an oversight. | GitHub Action config | ADR-0004 Part 4 |
+| AW-11 | Every non-draft PR into `int` (dev → int) routes through the GitHub Action automatically — not opt-in per PR; the `int` → `main` promotion PR is deliberately not re-reviewed (2026-09-19). A draft PR is re-evaluated once it's marked ready for review (the workflow's `ready_for_review` trigger), but one merged while still draft would never get reviewed — a deliberate cost trade-off (drafts iterate heavily), not an oversight. | GitHub Action config | ADR-0004 Part 4 |
 | AW-12 | Review surface (managed service vs. local `/code-review`) is selected automatically by plan-tier availability, checked once and cached, not re-verified per PR | GitHub Action config | Verify plan-tier availability once when wiring this up (ADR-0004's named unresolved item) |
 | AW-13 | Check-run conclusion is always neutral regardless of findings — merge authority never leaves the human reviewer | GitHub Action config | Matches Part 3's same default-deny-on-unapproved-merge posture |
  

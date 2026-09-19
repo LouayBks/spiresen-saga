@@ -23,6 +23,9 @@ name: Claude Code Review
 
 on:
   pull_request:
+    # Only PRs into `int` (dev -> int) get the automatic review; the int ->
+    # main promotion PR is not re-reviewed.
+    branches: [int]
     types: [opened, synchronize, reopened, ready_for_review]
 
 # One review run per PR head ref at a time; a new push supersedes an
