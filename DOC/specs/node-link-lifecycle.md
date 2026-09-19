@@ -67,6 +67,7 @@ Define how Nodes and Links get created and deleted — `boxes-plan.md` names lin
 | CON-6 | Node deletion MUST require an explicit confirmation step; Link deletion MUST NOT. | |
 | CON-7 | After a Node is deleted, neither its content nor its nested Map (at any depth) MUST be reachable through the app, even while physical cleanup is still in progress. | Anticipated requirement for #36/#57: a read of anything under a deleted Node answers not found. |
 | CON-8 | A write that targets a Node, Link or View that does not exist MUST be rejected as not found; a write MUST NOT create the thing it targets, except the explicit create operations (BHV-1, BHV-7, "Add inside"). | Includes drags, edits and every content write (`content-authoring.md`) aimed at a deleted or made-up id. |
+| CON-9 | A Link whose endpoint Node no longer exists MUST NOT be returned to any reader and MUST NOT count toward its View's Link cap. | Anticipated requirement for #36/#57; the cascade (BHV-6) removes such Links, and this holds even if a removal is interrupted. |
 
 ## Open questions
 
