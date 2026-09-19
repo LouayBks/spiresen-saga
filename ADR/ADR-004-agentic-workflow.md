@@ -70,3 +70,8 @@ This ADR assumes points 1-3's decisions hold — vertical-slice's low cross-slic
 Two real decisions are surfaced but deliberately left to Lou, not resolved here: whether to allowlist any operations via autoMode.environment (Part 3), and whether the managed Code Review service is actually available on this account's plan tier (Part 4, degrades gracefully either way).
 The 260-config Nature paper has a minor unresolved discrepancy (an earlier companion blog post states 180 configurations) — doesn't change the figures used here, flagged for honesty.
 Every other named gap (Parts 5-8's evidence limits, the bypass criterion's non-standard status, LSP-usage verification, CloudWatch noise handling) is stated inline in its own Part above rather than repeated here — deliberately, to avoid this section duplicating what's already said once.
+
+## Amendment (2026-09-19): the high-risk area set changed
+
+Part 5's high-risk areas and the "a one-line change to fractional-ordering still gets reviewed" example (Part 4) reference fractional ordering, which no longer exists in the data model (`DOC/specs/alternate-views.md`, `map-lifecycle.md`). The principle stands — triviality never lifts the high-risk review — and the areas are now **auth/authorization checks, cross-slice authorization boundaries, and data-invariant transactions** (`ADR-007`, `.claude/risk-paths.json`, TS-17). Read "fractional-ordering" in this ADR's examples as "any change to a maintained counter or derived field."
+

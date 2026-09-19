@@ -1,18 +1,18 @@
 {
-  "_comment": "AW-6 mechanical risk-path check. path_patterns are glob patterns matched against edited file paths; import_patterns are literal substrings matched against edited file content (e.g. an import line), per named high-risk area (TS-17). Empty per-area lists are expected until the matching app code exists beyond draft/ — add patterns as slices are built, review whenever a new high-risk area is named.",
+  "_comment": "AW-6 mechanical risk-path check. path_patterns are glob patterns matched against edited file paths; import_patterns are literal substrings matched against edited file content (e.g. an import line), per named high-risk area (TS-17). Empty per-area lists are expected until the matching app code exists beyond draft/ — add patterns as slices are built, review whenever a new high-risk area is named. Area set revised 2026-09-19: fractional-order-calculation retired (fractional ordering no longer exists in the data model); data-invariant-transactions added (ADR-007).",
   "areas": {
-    "fractional-order-calculation": {
-      "description": "Fractional/lexicographic order key generation and comparison for drag-and-drop reordering",
-      "path_patterns": [],
-      "import_patterns": []
-    },
     "auth-allowlist": {
-      "description": "Cognito claim extraction, Saga membership/role checks, any write-authorization path",
+      "description": "Cognito claim extraction, Map membership checks, read-authorization (visibility) decisions, handle-claim ownership checks, any write-authorization path. (Key name kept for stability — there is no allowlist; authorization is membership plus visibility.)",
       "path_patterns": [],
       "import_patterns": []
     },
     "cross-slice-authorization": {
-      "description": "Any code that resolves or checks a box/content item's owning Saga across slice boundaries",
+      "description": "Any code that resolves or checks a Node/content item's owning top-level Map across slice boundaries — id parsing and root-Map derivation, and the order in which read/write authorization runs relative to loading content.",
+      "path_patterns": [],
+      "import_patterns": []
+    },
+    "data-invariant-transactions": {
+      "description": "Multi-item DynamoDB transactions that maintain counters, derived fields (childCount, imageCount, hasArticle, excerpt), uniqueness claims (handles, link pairs) and content exclusivity — first-login provisioning, Node/Link/View create and delete, Map cascade delete (ADR-007). The repository layer is the only place allowed to write derived fields.",
       "path_patterns": [],
       "import_patterns": []
     }

@@ -115,3 +115,8 @@ Risks and limitations, stated generally:
 - **The flaky-test retry policy is adopted in principle but not calibrated.** "Rerun before concluding flaky" is directionally supported by evidence; the specific retry count/timeout is a step-4 decision with no research to anchor it precisely.
 - **Writer/reviewer separation has a real cost** (running two models/contexts instead of one) and is deliberately scoped to high-risk logic rather than applied universally — step 4 will need to name exactly which logic qualifies, not leave it to per-task judgment alone.
 - **The "optimize cheap, deploy strong" 5.6-54x cost figure is cited as an architectural analogy, not a code-testing-specific number** — its domain (evolutionary prompt optimization) differs from this project's use case; don't restate it in step 4 as if it were measured for code testing.
+
+## Amendment (2026-09-19): the named high-risk areas changed
+
+This ADR names "fractional ordering" and "auth allowlist" as the correctness-critical logic that justifies writer/reviewer separation (criterion B, and the adopted rule scoped to high-risk logic). The decision itself is unchanged; the **examples** are superseded. Fractional ordering no longer exists in the data model — z-order and the theme/timeline auto-layouts were dropped, and a View's order is a plain integer 1–3 (`DOC/specs/alternate-views.md`, `map-lifecycle.md`). There is also no allowlist: authorization is Map membership plus Map visibility (`DOC/specs/accounts-and-auth.md`, `map-visibility.md`). The current set, per `.claude/risk-paths.json` and TS-17: **auth/authorization checks, cross-slice authorization boundaries, and data-invariant transactions** (`ADR-007`). Nothing here reopens the scoring.
+

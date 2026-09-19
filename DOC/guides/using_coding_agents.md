@@ -49,10 +49,10 @@ Every `Edit`/`Write` triggers `.claude/hooks/detect-high-risk.py` against
 `.claude/risk-paths.json` (AW-6 tier 1) before it escalates to the `risk-classifier` subagent
 (tier 2) on anything ambiguous. You don't invoke this — it's a `PreToolUse` Hook.
 
-**Known gap as of this writing**: `risk-paths.json`'s three areas (fractional-order-calculation,
-auth-allowlist, cross-slice-authorization) all have empty `path_patterns`/`import_patterns` —
+**Known gap as of this writing**: `risk-paths.json`'s three areas (auth-allowlist,
+cross-slice-authorization, data-invariant-transactions) all have empty `path_patterns`/`import_patterns` —
 placeholders from before any real slice existed. The first ticket that creates the actual
-directories these areas describe should fill in real patterns as part of that ticket's plan,
+directories these areas describe (#57, the persistence and CRUD backend) should fill in real patterns as part of that ticket's plan,
 otherwise tier 1 is a no-op and tier 2 (`risk-classifier`) carries more load than intended.
 
 If a plan or a diff gets flagged high-risk:

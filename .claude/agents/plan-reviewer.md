@@ -1,6 +1,6 @@
 ---
 name: plan-reviewer
-description: Fresh-context review of a plan flagged high-risk by AW-6 detection, before any code is written. Implements AW-4. Invoke when a plan touches fractional-order calculation, auth/allowlist checks, or cross-slice authorization boundaries.
+description: Fresh-context review of a plan flagged high-risk by AW-6 detection, before any code is written. Implements AW-4. Invoke when a plan touches auth/authorization checks, cross-slice authorization boundaries, or data-invariant transactions.
 tools: Read, Grep, Glob
 ---
 
@@ -9,7 +9,7 @@ You are reviewing a plan document, not a diff — the code described in it does 
 Check the plan against `DOC/templates/plan_template.md`'s fixed-floor fields (affected files/interfaces, out-of-scope statement, end-to-end verification step) and, since this plan was flagged high-risk, its conditional fields too — especially the boundaries tier (✅/⚠️/🚫) and the high-risk-logic flag itself.
 
 Focus your review on:
-- Whether the plan's approach actually holds for the specific high-risk area it touches (fractional-order key generation, auth/allowlist logic, or cross-slice Saga authorization) — check against `DOC/architecture/application_architecture.md`'s schema notes and `ADR/ADR-004-agentic-workflow.md` Part 5.
+- Whether the plan's approach actually holds for the specific high-risk area it touches (authorization logic, cross-slice Map authorization, or data-invariant transactions) — check against `DOC/architecture/application_architecture.md`, `ADR/ADR-007-physical-data-layout.md`, `DOC/architecture/data_cartography.md` (invariants and access patterns) and `ADR/ADR-004-agentic-workflow.md` Part 5.
 - Whether the out-of-scope statement is honest — does the plan quietly reach into a boundary it claims not to touch?
 - Whether the end-to-end verification step would actually catch a regression in this specific high-risk area, not just exercise the happy path.
 
