@@ -37,7 +37,7 @@ Reading notes:
 **Field notes**
 - `size`: two integers, min 1, max 12 (tunable constant), default 1×1, identical across Views (box-sizing CON-1/CON-2). `positions` values use the same grid unit; grid layout snaps at render time and stored freeform positions are only overwritten by an explicit drag.
 - **Tile vs. detail** (ADR-007): the tile holds only what the canvas renders, every field individually capped, so a Map load is bounded. Everything else — full text, note, URLs, gallery — is in the detail, fetched only when a node is opened. `excerpt` is the first 200 characters of `body`, `imageCount` is the length of `images`, `hasArticle` mirrors the article item, `childCount` mirrors the nested Map's Node count; these four are the only derived copies and are written only inside the transaction that writes their source.
-- `handle`: unique across users, `[a-z0-9_]+`, 3–30 chars; claimed by its own item so uniqueness is a key condition (ADR-007 D4). `username`: free text, not unique. Both are public wherever a Map is publicly listed; the email never is.
+- `handle`: unique across users, `[a-z0-9_]+`, 3–32 chars; claimed by its own item so uniqueness is a key condition (ADR-007 D4). `username`: free text, 1–32 chars, not unique. Both are public wherever a Map is publicly listed; the email never is.
 - `visibility`: on the **root** Map only (a nested Map inherits, and never carries it). Governs reading, never writing (map-visibility CON-3/CON-4). While `public`, the Map's META also carries the gallery-index keys and `publishedAt`; they are removed when it leaves `public`.
 - `preview`: at most one per node — the first recognised-provider URL (YouTube in v1), fetched once via oEmbed at attach time. `urls` is a plain list of strings with no count cap.
 - `images`: at most 10 `{s3Key, caption?}`. Bytes never touch Lambda (content-authoring CON-2); only keys are stored.
@@ -161,6 +161,7 @@ All are constants in one settings module — tunable without a schema change.
 | `title` / `note` / `body` | 200 / 1,000 / 10,000 chars | proposal; the UI's overflow warning stays soft |
 | Link `label`, Image `caption` | 100 / 200 chars | proposal |
 | Map name / View name | 100 / 50 chars | proposal |
+| Handle / username | 3–32 / 1–32 chars | decided 2026-09-19 against platform norms (accounts-and-auth CON-8) |
 | Article markdown | 100K chars | proposal; far under the 400 KB item limit |
 | Nesting depth | no cap | window-system decision; key-length limits are nowhere near |
 | Image upload | 10 MB, jpg/png/webp | content-authoring CON-1 |
@@ -202,7 +203,7 @@ Add to the `api` Terraform module: the table (`PAY_PER_REQUEST`, point-in-time r
 3. `LinkType` value set (`theme | timeline | soft` vs. `causal`) — spec inconsistency to resolve.
 4. Confirm the proposed limits marked "proposal" in §7.
 5. Whether "+ New Map" seeds the two placeholders like first login (currently assumed yes).
-6. ~~Map visibility~~ — specified in `map-visibility.md` (private / unlisted / public, default private). Still open there: moderation/takedown for public Maps, search-engine indexing, and link rotation for `unlisted`. Owner attribution is now settled (handle + username, `accounts-and-auth.md`).
+6. ~~Map visibility~~ — specified in `map-visibility.md` (private / unlisted / public, default private). Still open there: moderation/takedown for public Maps (backlog ticket #52), search-engine indexing, and link rotation for `unlisted`. Owner attribution is now settled (handle + username, `accounts-and-auth.md`).
 7. Amend `boxes-plan.md` (§2 schema, §4 tiers, §7a) — flagged by the specs' "updates once accepted" notes, not done here.
 
 ## 13. Traceability

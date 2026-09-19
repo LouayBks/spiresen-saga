@@ -93,7 +93,7 @@ Because an `unlisted` Map's only protection is its link, the top-level Map ident
 
 ## Open questions
 
-- **Moderation of the public gallery** — a public listing invites abuse (spam, harmful content). A report/takedown path is real, unresolved scope; nothing in this spec provides one, and anyone able to sign in can publish. Flagged before the gallery ships, not designed here.
+- **Moderation of the public gallery** — deferred to backlog ticket **#52** (moderation in general, not only images). Nothing in this spec provides a report/takedown path, and anyone able to sign in can publish, so #52 must land before the public gallery ships.
 - **Search-engine indexing** — whether `unlisted` pages should carry a `noindex` signal and whether `public` ones should be indexable. A frontend/infra concern, not a modeling one.
 - **Link rotation for `unlisted`** — the only revocation is switching to `private`; a Map's link never changes. A "regenerate link" action would need a second identifier and is not offered.
 - **A "signed-in users only" audience** — deliberately not a fourth state; add only if a real need appears.
