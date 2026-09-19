@@ -33,7 +33,7 @@ How the owner edits a size (drag handle, numeric fields, or a preset shortcut li
 | ID | Statement | Notes |
 |---|---|---|
 | CON-1 | A Node's `size` MUST be identical across every View of its Map — size does not vary per view. | Owning decision for this field; `alternate-views.md` cites this row rather than deciding it independently. |
-| CON-2 | A Node's `size` MUST be a pair of integers `w`, `h`, each at least 1 and at most a configurable system-wide maximum. | Replaces the withdrawn "exactly three enumerated values" rule. The maximum is a tunable constant, not a product commitment. |
+| CON-2 | A Node's `size` MUST be a pair of integers `w`, `h`, each at least 1 and at most a configurable system-wide maximum. | Replaces the withdrawn "exactly three enumerated values" rule. The maximum is a tunable constant, not a product commitment — the suggested starting value is 12 (matching the grid's 12 columns, `window-system.md`), to be tuned as real use teaches us. |
 | CON-3 | A Node's `size` MUST NOT be inferred automatically from its visualization state (`content-authoring.md` CON-7) or content length — it is always an explicit owner choice, with a fixed default only at creation (`node-link-lifecycle.md`). | Unchanged in substance from the first draft. |
 
 ## Open questions

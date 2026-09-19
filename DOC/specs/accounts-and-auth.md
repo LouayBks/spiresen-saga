@@ -2,7 +2,7 @@
 
 Format per `DOC/templates/spec_design_template.md` (ADR-006). Owns the *flow*: how a Google-SSO login ties a person to a Map they own, whether the owner/editor/viewer role model is live in v1, what replaces the `ALLOWED_WRITER_SUBS` placeholder, and the minimal account-settings surface. **Deliberately does not decide any DynamoDB key/item shape** — that's #36 ("Data foundation"), sequenced after this spec specifically so the schema gets built once. This spec states the requirements #36's storage design must satisfy (durable identity, one canonical Map name, atomic first-login provisioning, no hot-partition regression) without prescribing PK/SK syntax to meet them. Does not touch `naming.md`'s terminology decisions (uses **Map**, not Saga, for the entity, per `naming.md` CON-1/CON-4) and does not redecide Map visibility (public/private/unlisted) — that stays the open item `application_architecture.md` already tracks, since it isn't one of this ticket's tasks.
 
-**Revision note (2026-09-19):** a newly created top-level Map (first-login provisioning and "+ New Map" alike) is no longer empty — it is seeded with two placeholder Nodes joined by one Link, in its default View, so it starts in freeform layout (`window-system.md` CON-6: a View with at least one Link is freeform; with none, grid) and gives the owner something to react to. Decided during #36's data-model discussion. The placeholder content itself is copy defined in application code, not in this spec; the placeholders are ordinary Nodes and the Link an ordinary Link, deletable like any other (deleting the last Link returns that View to grid).
+**Revision note (2026-09-19):** a newly created top-level Map (first-login provisioning and "+ New Map" alike) is no longer empty — it is seeded with two placeholder Nodes joined by one Link, in its default View, so it starts in freeform layout (`window-system.md` CON-6: a View with at least one Link is freeform; with none, grid) and gives the owner something to react to. Decided during #36's data-model discussion. The initial copy is set out under "Seeded content" below (wording tunable in code); the placeholders are ordinary Nodes and the Link an ordinary Link, deletable like any other (deleting the last Link returns that View to grid).
 
 **Revision note (2026-09-19):** users now have a **username** and a **handle**. Raised while specifying the public gallery (`map-visibility.md`), which needs a public, chosen label for a Map's owner — the earlier "email and display name come from the JWT, nothing is stored" position gave a gallery nothing it could safely show. The handle is unique across all users and restricted to lowercase letters, digits and underscores; the username is free text. Both are editable, both are public where a Map is public, and identity stays the Cognito `sub` (CON-1): a handle is a label, never an identity. Account settings (below) and BHV-5 change accordingly.
 
@@ -39,6 +39,17 @@ Decide how a signed-in user becomes tied to Map ownership, whether the owner/edi
 ### `ALLOWED_WRITER_SUBS` is replaced by a membership check, in the same change, no transition period
 
 **A write to a Map (or anything under it) is authorized if and only if the requesting person has a membership on that Map** — the existing User↔Map relationship #36's own task list already targets ("per-Saga write authorization against the User↔Saga membership record, replacing `ALLOWED_WRITER_SUBS`"). Since v1 only ever creates `owner` memberships, this is currently equivalent to a plain existence check, not real role-branching — that distinction only starts to matter once a future ticket turns on sharing. `ALLOWED_WRITER_SUBS` is deleted in the same change that ships this check, not deprecated alongside it — there is currently exactly one real writer (Lou), whose access is re-created as a single owner membership rather than staged behind a feature flag or dual-checked during a migration window.
+
+### Seeded content: two guiding notes
+
+A new top-level Map starts with two short guiding Nodes joined by one `soft` Link, side by side in the default View so they don't overlap, each sized to show its text (about 3 × 2). This is the **initial copy** — plain, calm, instructional; the wording is tunable in code without a spec change.
+
+| Node | Title | Body |
+|---|---|---|
+| 1 | Start here | This is your Map. Click empty space to add a Node, then drag it where it belongs. Your Map is private until you share it. |
+| 2 | Connect your ideas | Drag from one Node's edge to another to link them. Open a Node to write in it. Delete these two notes whenever you like. |
+
+Both are ordinary Nodes: editable, deletable, no special status. They are private like the rest of the Map (`map-visibility.md`).
 
 ### Username and handle
 
