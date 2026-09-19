@@ -84,6 +84,7 @@ Listing "Your Maps" returns only Maps the caller is a member of, oldest first, i
 | CON-4 | After a Map is deleted, nothing that was beneath it MUST be reachable through the app, even if physical removal is still in progress. | Stored image files MAY linger until a cleanup mechanism exists (#54). |
 | CON-5 | A Map's Views MUST always be ordered 1..n with no gaps or ties, n between 1 and 3. | Fractional ordering is deliberately not used. |
 | CON-6 | A user with zero Maps MUST be a valid state, and MUST NOT trigger first-login provisioning again. | Provisioning is keyed to the user being new, not to having no Maps. |
+| CON-7 | The Maps list MUST NOT include a Map that no longer exists, even if a membership record for it lingers after an interrupted delete. | Anticipated requirement for #57. |
 
 ## Open questions
 

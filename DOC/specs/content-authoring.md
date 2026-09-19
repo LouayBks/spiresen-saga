@@ -105,6 +105,7 @@ Everything the owner can attach, the owner can also change or take away, and the
 | CON-12 | Every content shape defined in this spec MUST be representable as a flat, serializable JSON value with no hidden client-only state. | The feature-as-code constraint — ties to #23, not enforced by any test here, but binding on every future addition to this spec. |
 | CON-13 | Image or article content removed by the owner MUST become unreachable through the app immediately; the stored image files MAY remain in storage until a cleanup mechanism exists. | Cleanup is tracked with #54. |
 | CON-14 | A content write (body, note, URL, article, gallery image, cover image) MUST be rejected as not found when the Node it targets does not exist. | Specialises `node-link-lifecycle.md` CON-8; also means a deleted Node's content can never be read back. |
+| CON-15 | A URL stored on a Node (attached URLs, the preview's URL and thumbnail URL, image keys) MUST be in ASCII form — percent-encoded or punycode — and the backend MUST normalize non-ASCII input or reject it. | Keeps a Map load's size bound honest (`data_cartography.md` section 7); a URL is ASCII in practice anyway. |
 
 ## Open questions
 
