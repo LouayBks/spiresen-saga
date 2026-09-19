@@ -104,6 +104,7 @@ Everything the owner can attach, the owner can also change or take away, and the
 | CON-11 | Link-preview metadata (`thumbnailUrl`/`title`) MUST be fetched at most once per node, at attach-time — MUST NOT be refetched on every render, and a node MUST NOT hold more than one preview. `Node.urls` MUST NOT have a count cap of its own (bounded only by the node's overall size limit, if any). | Keeps this Lambda-lean; a stale thumbnail is an acceptable tradeoff over refetching per view. |
 | CON-12 | Every content shape defined in this spec MUST be representable as a flat, serializable JSON value with no hidden client-only state. | The feature-as-code constraint — ties to #23, not enforced by any test here, but binding on every future addition to this spec. |
 | CON-13 | Image or article content removed by the owner MUST become unreachable through the app immediately; the stored image files MAY remain in storage until a cleanup mechanism exists. | Cleanup is tracked with #54. |
+| CON-14 | A content write (body, note, URL, article, gallery image, cover image) MUST be rejected as not found when the Node it targets does not exist. | Specialises `node-link-lifecycle.md` CON-8; also means a deleted Node's content can never be read back. |
 
 ## Open questions
 

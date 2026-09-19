@@ -1,6 +1,6 @@
 # ADR-007: Physical data layout — DynamoDB keys, item split, and constant-key collections
 
-**Status:** Proposed
+**Status:** Accepted (2026-09-19, by the owner, with PR #51)
 **Date:** 2026-09-19
 **Scope:** how the app's data is physically laid out in DynamoDB — partition/sort key design, which attributes live in which item, and the rule for keys that have no natural owner (listings). It does **not** decide product behavior (that is `DOC/specs/*.md`, per ADR-006's amendment), IAM/Terraform wiring beyond the one control named below, or API shapes. The entity-by-entity map that applies this decision is `DOC/architecture/data_cartography.md`.
 
@@ -39,6 +39,13 @@ Verified DynamoDB facts this decision leans on (AWS Developer Guide):
 | G | Cascade-delete and export/import (#23) tractability | How hard is deleting a node's subtree and mapping a Map to/from a JSON document? | `node-link-lifecycle.md` CON-3; `content-authoring.md` CON-12. |
 | H | Scan and hot-key freedom | Is every read a key lookup, and is any single key a write hot spot? | AWS docs (partition limits); owner requirement (no costly scans). |
 
+## Hard requirements (gates)
+
+Some requirements are not trade-offs; an option that misses one is out however it scores. They are applied **before** scoring.
+
+- **G1 — A Map load is bounded whatever the content.** Opening a Map must be answerable by one `Query` response (one 1 MB page) with every Node's canvas data, however long the bodies or URL lists are (`alternate-views.md` CON-4 requires a Map's Nodes, Links and Views to be fetchable together in a single request; the owner's rulings are that URLs are uncapped and info bodies may run to 10,000 characters). Arithmetic: 50 Nodes in 1 MB leaves about 20 KB per Node item, while a 10,000-character body alone can be 40 KB in multibyte text (DynamoDB counts UTF-8 bytes) and the URL list is unbounded. A layout that keeps a Node's full text in the item the Map load reads cannot meet G1 without cutting those rulings to a fraction of their current size.
+- **G2 — Item count must not scale with Nodes × Views** (`alternate-views.md`), and repositioning one Node in one View must be a single narrow write.
+
 ## Considered options
 
 1. **One fat item per Node** — everything about a node (display fields, body, note, urls, images, positions) in a single item, article body aside. The layout `data_cartography.md`'s first draft proposed.
@@ -50,7 +57,9 @@ Excluded: multi-table designs (contradicts the committed single-table decision),
 
 ## Evaluation
 
-Scores use a 1–3 scale (1 = Weak, 2 = Moderate, 3 = Strong) against the criteria above.
+**Step 1 — gates.** Option 1 fails G1 (its worst case is unbounded, see above). Option 3 fails G1 twice over (the whole Map, details included, is one item that can also reach the 400 KB item limit). Option 4 fails G2 (per-View position items scale with Nodes × Views). Option 2 is the only option that passes both.
+
+**Step 2 — scores, for information.** Scores use a 1–3 scale (1 = Weak, 2 = Moderate, 3 = Strong) against the criteria above. **No weights are applied.** The scores do not decide the outcome — the gates already did — and they show, honestly, where the surviving option is weakest.
 
 ### Option 1 — One fat item per Node
 
@@ -61,23 +70,25 @@ Simplest mental model: one node, one item. Positions embedded as a map keyed by 
 | 1 | 3 | 1 | 3 | 3 | 3 | 3 | 3 |
 
 Contested points:
-- **A is 1, not 2.** Typical content is small, but the caps make the worst case unbounded in practice: `urls` has no count cap and `body` allows 10,000 characters, so 50 nodes can exceed the 1 MB `Query` page. That breaks the single-`Query`-per-Map guarantee exactly when a Map is content-heavy. A projection cannot rescue this — it trims the response, not the capacity or the item read.
+- **A is 1, not 2.** Typical content is small, but the worst case is unbounded in practice (G1). A projection cannot rescue this — it trims the response, not the capacity or the item read.
 - **C is 1.** A drag rewrites the whole item's billed size; a node carrying a large URL list or body makes the most frequent write the most expensive one.
+- **B is 3.** Opening a node needs no extra request.
 
 ### Option 2 — Tile + detail split in one table
 
-The Map's partition holds only tiles, views, links and meta; a node's full text lives in a separate partition keyed by node id. Opening a Map is one `Query` returning only what the canvas renders. Opening a node is one `Query` on its own content partition, which returns the detail item and, by CON-8 exclusivity, at most one heavy item beside it (the article).
+The Map's partition holds only tiles, views, links and meta; a node's full text lives in a separate partition keyed by node id. Opening a Map is one `Query` returning only what the canvas renders. Opening a node is one batched read of its tile, detail and article, which by CON-8 exclusivity means at most one heavy item beside the detail.
 
 | A | B | C | D | E | F | G | H |
 |---|---|---|---|---|---|---|---|
-| 3 | 3 | 3 | 2 | 2 | 2 | 2 | 3 |
+| 3 | 2 | 3 | 2 | 2 | 2 | 2 | 3 |
 
 Contested points:
 - **A is 3 by construction.** Tile fields are individually capped (title, date, excerpt, preview, cover), so a 50-node Map is bounded — typically tens of KB, and at most about 0.5 MB even with worst-case multibyte text and the maximum Links (checked against DynamoDB's UTF-8 byte counting, 2026-09-19) — regardless of how large bodies, URL lists or galleries get.
-- **C is 3 for the dominant write.** A drag touches only a ~1 KB tile. Edits that change the excerpt must update tile and detail together, a transaction at twice the write cost; that is real but concerns a rare, larger write, and is skipped when the excerpt is unchanged.
-- **D is 2, not 3.** Exclusivity now spans two items (`childCount`/`imageCount`/`hasArticle` on the tile, images in the detail), so those checks are transactional rather than a single-item condition.
+- **B is 2, not 3.** Opening a node is a second request the fat item does not need; opening a Map is still one. Every read also verifies the ancestor Nodes still exist (D1), a few keyed lookups added to a read.
+- **C is 3 for the dominant write.** A drag touches only a ~1 KB tile. Edits that touch the detail are transactions (each detail write also checks its tile exists), at twice the write cost; that concerns rarer, larger writes.
+- **D is 2, not 3.** Exclusivity spans two items (`childCount`/`imageCount`/`hasArticle` on the tile, images in the detail), so those checks are transactional rather than a single-item condition.
 - **E is 2.** Four tile fields are derived copies (`excerpt`, `imageCount`, `hasArticle`, `childCount`). They change only inside the transaction that changes their source, and each has a test; every other field has exactly one home.
-- **F is 2, G is 2.** More items per node (tile, detail, maybe article) means more repository code, a slightly bigger cascade and a join on export — modest, and no worse than the counters Option 1 already needs.
+- **F is 2, G is 2.** More items per node (tile, detail, maybe article) means more repository code, a slightly bigger cascade and a join on export.
 
 ### Option 3 — One document per Map
 
@@ -98,28 +109,33 @@ One item per (node, View) position, one per attribute group.
 
 | A | B | C | D | E | F | G | H |
 |---|---|---|---|---|---|---|---|
-| 2 | 3 | 3 | 2 | 2 | 1 | 1 | 3 |
+| 2 | 2 | 3 | 2 | 2 | 1 | 1 | 3 |
 
 Contested points:
-- **It fails a hard requirement**, whatever its score: `alternate-views.md` says item count MUST NOT scale with nodes × Views, and per-View position items do exactly that (up to 3× the nodes).
+- **It fails G2**, whatever its score: per-View position items scale with Nodes × Views (up to 3× the nodes).
+- **B is 2** for the same reason as Option 2: opening a node needs extra requests.
 - **F and G are 1.** The most machinery, the most items to keep coherent, the largest cascade.
 
 ### Full comparison table
 
 | ID | 1. Fat item | 2. Tile + detail | 3. Map document | 4. Fully normalized |
 |---|---|---|---|---|
+| Gates (G1, G2) | **fails G1** | passes | **fails G1** | **fails G2** |
 | A | 1 | 3 | 1 | 2 |
-| B | 3 | 3 | 3 | 3 |
+| B | 3 | 2 | 3 | 2 |
 | C | 1 | 3 | 1 | 3 |
 | D | 3 | 2 | 1 | 2 |
 | E | 3 | 2 | 3 | 2 |
 | F | 3 | 2 | 2 | 1 |
 | G | 3 | 2 | 2 | 1 |
 | H | 3 | 3 | 3 | 3 |
+| Unweighted sum | 20 | 19 | 16 | 16 |
 
 ## Decision
 
-**Option 2: split each node into a tile and a detail, in a single table, with keys designed so every read is a `GetItem`/`Query` on a key computable from the request.** It wins A and C outright — the two criteria the owner named — and loses D/E/F/G by exactly one point each to the fat item, the price of one extra item per node and four derived fields. Option 1 is the honest runner-up and the right choice if content were guaranteed small; the uncapped `urls` and the 10,000-character body are what make its worst case unacceptable. Option 3 fails on capacity and concurrency; Option 4 fails a spec constraint.
+**Option 2: split each node into a tile and a detail, in a single table, with keys designed so every read is a `GetItem`/`Query`/`BatchGetItem` on a key computable from the request.**
+
+It is chosen because it is the only option that passes the gates, **not** because it out-scores the others: on an unweighted sum the fat item scores marginally higher (20 against 19). The gates encode the owner's own rulings — retrieve only what a view needs, URLs uncapped, long bodies allowed — and G1 is what those rulings cost a fat item. The scores then say where Option 2 pays: a second request to open a node, transactions on detail writes, four derived fields, more items per node. Option 1 is the honest runner-up: **if content were ever capped tightly enough for a fat item to fit G1** (each Node ≤ ~20 KB, e.g. bodies ≤ ~2,000 characters and only a couple of dozen URLs, which contradicts today's decisions), it would be the simpler choice and this ADR should be revisited.
 
 ### D1 — The layout
 
@@ -129,11 +145,14 @@ Source: [`DOC/architecture/diagrams/physical_layout.puml`](../DOC/architecture/d
 
 - **`MAP#{mapId}` partition — the canvas.** One `Query` returns `META`, every `VIEW#`, every `NODE#{shortId}` **tile**, and every `LINK#`. A nested Map is the same shape, with `mapId` equal to its group Node's id. Sort-key prefixes keep item types separable if a later access pattern wants only one of them (`begins_with`).
 - **Tile (`NODE#`)** carries only what the canvas renders: `title`, `date`, `size`, `positions`, `coverImage`, the single `preview`, a capped `excerpt` of the body, and the derived `childCount`, `imageCount`, `hasArticle`. Every field is individually capped, so the tile's size is bounded.
-- **`CONTENT#{nodeId}` partition — the node's full data.** `DETAIL` holds `body`, `note`, `urls[]`, `images[]`. `ARTICLE` holds the markdown. One `Query` on this partition opens a node; exclusivity (CON-8) means at most one heavy item accompanies the detail. `DETAIL` is created on the first write of any detail field; an absent item means "empty". The content partition is keyed by node id, so the owning root Map is still derivable from the id (first dot segment) — no `mapId` attribute is needed to authorize a content write.
+- **`CONTENT#{nodeId}` partition — the node's full data.** `DETAIL` holds `body`, `note`, `urls[]`, `images[]`. `ARTICLE` holds the markdown. One `BatchGetItem` of the tile, `DETAIL` and `ARTICLE` (folded into the read-authorization batch, D3) opens a node; exclusivity (CON-8) means at most one heavy item accompanies the detail. `DETAIL` is created on the first write of any detail field; an absent item means "empty". The content partition is keyed by node id, so the owning root Map is still derivable from the id (first dot segment) — no `mapId` attribute is needed to authorize a content write.
 - **Positions live in the tile**, so a drag is one narrow `SET positions.#view` on a ~1 KB item and the item count does not scale with nodes × Views. Deleting a View cannot atomically strip its position from every tile: the View item is deleted first, and leftover `positions[viewId]` entries and Links are best-effort cleanup — harmless because readers ignore unknown viewIds and viewIds are never reused.
 - **Links** sort as `LINK#{viewId}#{lo}#{hi}` with the two endpoint short ids in sorted order, so "at most one Link per node pair per View, in either direction" is enforced by an `attribute_not_exists` put — no read-then-write race.
 - **Which copy is authoritative.** Each tile field is the single source of truth except the four derived ones: `excerpt` (from `body`), `imageCount` (from `images`), `hasArticle` (from the article item), `childCount` (from the nested Map's Nodes). A derived field is written only inside the transaction that writes its source.
 - **All multi-item writes with invariants are `TransactWriteItems`** — first-login provisioning, node/link/view create and delete, article attach, gallery changes, excerpt-changing body edits. Counters (`nodeCount` on the Map, `linkCount` on a View) live beside the items they cap so a cap is a condition on the same transaction.
+- **Existence rule — no write may create the thing it targets, except an explicit create.** Every `UpdateItem` carries `attribute_exists(PK)` (a bare update on a missing key would otherwise upsert a stray item). The detail and article items are upserts by design (`DETAIL` is created on the first write), so **every content write is a transaction that also checks the owning tile exists** (a `ConditionCheck`, or the tile's own conditional `Update`); an owner therefore cannot mint a `CONTENT#{forged.id}` partition under their own root. A nested Map's `META` is created only by "Add inside" (below), never by a child create.
+- **A nested Map's lifecycle.** Its `META` and default View are created by one transaction — **"Add inside"** (`node-link-lifecycle.md` BHV-3): Put `MAP#{nodeId}` / `META` (`attribute_not_exists`, `nodeCount = 0`, `viewCount = 1`), Put its default View (`linkCount = 0`, order 1), and a `ConditionCheck` that the Node's tile exists. It is idempotent: a repeat fails the condition and is treated as "already there". Creating a child is an `Update` of that `META` (`attribute_exists`, `nodeCount < 50`), so a create in a Map that has no `META` fails cleanly instead of upserting one. **When the last child is removed the nested `META` and its Views remain** — an empty nested Map, with the Node presented as info again because `childCount` is 0 — so the owner's View names and arrangements survive; the nested partition is deleted only with its Node or its root Map.
+- **Reachability: a Node is reachable only if every ancestor Node's tile exists.** Cascade deletes are best-effort beyond 100 items, so orphan partitions can briefly outlive a deleted Node. Reads therefore verify the chain: the ancestor tiles' keys are all derivable from the requested id, so the read-authorization step fetches them in the same `BatchGetItem` as the root `META` (AP-19). Deleting a Node's tile first then really does make everything below it unreachable at once, and orphan content is never returned. Nesting depth carries a purely technical guard (32 levels, a suggested starting value) so this batch stays small.
 
 ### D2 — Constant keys for listings, and no Scan
 
@@ -145,13 +164,14 @@ Source: [`DOC/architecture/diagrams/physical_layout.puml`](../DOC/architecture/d
 ## Consequences and limitations
 
 - **The latency benefit is an inference, not a measurement.** A single-item read's latency does not scale meaningfully with size at these sizes. What the split reliably buys is a bounded Map-load payload across the Lambda → API Gateway → browser path, less JSON parsing and Lambda memory, cheaper read units (a Map load costs roughly a tile's bytes, not a node's), and a much cheaper drag. Do not claim a specific latency figure; measure it on the dev table (AW-24's `dev` environment exists for this) once the endpoints exist.
+- **Every read also does a few keyed ancestor lookups** (the reachability check) — cheap, bounded by the depth guard, and the price of making delete-then-cleanup safe.
 - **Opening a node is a second request** that the fat-item layout would not need. It is the deliberate trade: pay it only when a node is actually opened, instead of on every Map open for every node.
-- **Transactions cost twice the write units** and are the only atomic path across items. At this app's volume that is negligible in money terms; it is why a plain `UpdateItem` is used wherever a write touches one item (drags, title/size/cover edits, note/url edits, renames).
+- **Transactions cost twice the write units** and are the only atomic path across items. At this app's volume that is negligible in money terms; it is why a plain `UpdateItem` is used wherever a write touches one item (drags, title/size/cover edits, renames).
 - **Derived fields are a discipline, not a guarantee.** They stay correct only if no write path bypasses the maintaining transaction. Each needs a test, and the repository layer is the single place allowed to write them.
-- **More items per node.** Cascade delete removes tile, `DETAIL`, `ARTICLE`, its Links, and — for a group — the nested partition; it is not atomic above 100 items (delete the tile first so the subtree becomes unreachable, then clean up). Export to JSON (#23) joins tile and detail.
+- **More items per node.** Cascade delete removes tile, `DETAIL`, `ARTICLE`, its Links, and — for a group — the nested partition; it is not atomic above 100 items (delete the tile first — reads verify the ancestor chain, so the subtree is unreachable at once — then clean up; node delete also decrements the counters in the same transaction). Export to JSON (#23) joins tile and detail.
 - **`moto` fidelity risk (TS-5) applies to the transaction paths in particular.** Supplement with a few hand-run checks on the real dev table for provisioning, node create, link create and cascade delete.
 - **Field caps are now schema constants.** The tile caps (title, date, excerpt, preview) are what bound the Map load; raising the 50-node cap or a tile cap re-opens the worst-case arithmetic in criterion A.
-- **Re-evaluate if** the per-Map node cap rises substantially, if a tile field grows large enough to threaten the Map-load bound, or if measured Map-load payloads show the split is not paying for itself.
+- **Re-evaluate if** the per-Map node cap rises substantially, if a tile field grows large enough to threaten the Map-load bound, if measured Map-load payloads show the split is not paying for itself, or if content is ever capped tightly enough that a fat item would satisfy G1 (then Option 1 is simpler and wins).
 
 ## Amendment (2026-09-19): visibility and the public gallery (D3)
 
@@ -167,7 +187,7 @@ Source: [`DOC/architecture/diagrams/physical_layout.puml`](../DOC/architecture/d
 - The **root** Map's META gains `visibility` (`private | unlisted | public`, always present, default `private`) and `ownerSub` (the owner pointer; ownership transfer is not in v1). A nested Map's META never carries it (`map-visibility.md` CON-2); the Map's own Query returns it, so the UI gets it for free (CON-11).
 - **`GSI1`**, sparse: `GSI1PK = "MAP#PUBLIC"` (a constant key — the owner's dummy-key idea, applied where it earns its keep) and `GSI1SK = {publishedAt}#{mapId}`. These two attributes exist on a META **only while it is `public`**; DynamoDB maintains the index, so there is no second write and no drift. The index projects `name` and `ownerSub` (a projection is maintained by DynamoDB, not a hand-kept copy, so `accounts-and-auth.md` CON-6 still holds). The gallery is a paginated descending `Query` on `MAP#PUBLIC`, newest-published first, followed by one `BatchGetItem` for the page's owners' labels (D4).
 - **Changing visibility is one `UpdateItem` on the root META** (CON-10): to `public` it sets `visibility`, `publishedAt`, `GSI1PK`, `GSI1SK`; leaving `public` it removes the last three. It must reject a nested Map.
-- **Read authorization order** (CON-9): from any request id take the first dot segment (the root Map id) → `GetItem` on its META with a **consistent read** → if `visibility` is `unlisted` or `public`, allow; if `private`, an authenticated caller needs a membership (`GetItem`, as AP-4) → otherwise answer 404 (CON-6) → only then run the Map or content `Query`. A refused read costs one or two single-item reads, never a Map load. Writes keep the membership-only path (CON-4).
+- **Read authorization order** (CON-9): from any request id take the first dot segment (the root Map id) and the ancestor Nodes on the id's path → one `BatchGetItem` of the root `META` (consistent read) plus each ancestor tile → if `visibility` is `unlisted` or `public`, allow; if `private`, an authenticated caller needs a membership (`GetItem`, as AP-4) → otherwise answer 404 (CON-6) → every ancestor tile must exist, else 404 (reachability, D1) → only then run the Map `Query` or the content read. A refused read costs a bounded number of keyed single-item lookups, never a Map load. Writes keep the membership-only path (CON-4).
 - **`MAP#ALL` — dropped**, see D2: the gallery runs off `GSI1`, and nothing else needed a directory.
 
 **Consequences**

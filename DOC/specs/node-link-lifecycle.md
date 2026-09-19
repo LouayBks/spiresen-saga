@@ -65,6 +65,8 @@ Define how Nodes and Links get created and deleted — `boxes-plan.md` names lin
 | CON-4 | A Link's two endpoints MUST both belong to the same Map — no Link may span two different Maps (nested or top-level). | Replaces the withdrawn "top-level Nodes only" rule from the first draft. |
 | CON-5 | A newly created Node's `size` MUST default to `1×1` and MUST carry no content of any kind at creation. | Widened: no `kind` to default either, since the field no longer exists. |
 | CON-6 | Node deletion MUST require an explicit confirmation step; Link deletion MUST NOT. | |
+| CON-7 | After a Node is deleted, neither its content nor its nested Map (at any depth) MUST be reachable through the app, even while physical cleanup is still in progress. | Anticipated requirement for #36/#57: a read of anything under a deleted Node answers not found. |
+| CON-8 | A write that targets a Node, Link or View that does not exist MUST be rejected as not found; a write MUST NOT create the thing it targets, except the explicit create operations (BHV-1, BHV-7, "Add inside"). | Includes drags, edits and every content write (`content-authoring.md`) aimed at a deleted or made-up id. |
 
 ## Open questions
 

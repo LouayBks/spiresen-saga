@@ -49,7 +49,7 @@ package "PK = MAP#{mapId}   (ONE Query = open a Map: tiles only)" {
   }
 }
 
-package "PK = CONTENT#{nodeId}   (ONE Query = open a node)" {
+package "PK = CONTENT#{nodeId}   (one BatchGetItem = open a node)" {
   class "SK = DETAIL" as C1 {
     body
     note
