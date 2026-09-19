@@ -127,6 +127,8 @@ flowchart TD
 
 **Current implementation status, not just the target shape**: `claude-review.yml` today always runs the local `/code-review` path (node E) — the managed-service branch (node D) has no real integration behind it yet, `CLAUDE_REVIEW_TIER=managed` would just be a prompt string with nothing to switch to. Wiring an actual managed-service branch is tracked, not silently assumed done.
 
+**Node B's two trigger shapes, reconciled (2026-09-18):** the diagram names both "on PR event" (automatic) and "`@claude`" (interactive/on-demand) as the same entry point, but only the automatic half existed until now — `claude-review.yml`'s `permissions:` was also missing `id-token: write`, so even that automatic half was silently failing (the OIDC token request errored before the review step ran, masked by the check-run's hardcoded-neutral conclusion). Both are fixed as of this note: `claude-review.yml` has `id-token: write`, and `claude-review-on-demand.yml` adds the `@claude`/`on-demand` half, triggered by commenting `/review` on a PR.
+
 | ID | Rule | Surface | Notes |
 |---|---|---|---|
 | AW-11 | Every non-draft PR routes through the GitHub Action automatically — not opt-in per PR. A draft PR is re-evaluated once it's marked ready for review (the workflow's `ready_for_review` trigger), but one merged while still draft would never get reviewed — a deliberate cost trade-off (drafts iterate heavily), not an oversight. | GitHub Action config | ADR-0004 Part 4 |

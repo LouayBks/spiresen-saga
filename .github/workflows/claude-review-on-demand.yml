@@ -1,0 +1,58 @@
+# On-demand counterpart to claude-review.yml's automatic per-PR-event
+# review. Implements the "@claude / on PR event" interactive-mode entry
+# point named in DOC/architecture/agentic_workflow_processes.md section D
+# ("Review workflow ('gh claude')") — only the automatic half of that node
+# existed until now.
+#
+# Trigger: commenting "/review" anywhere in a PR's conversation
+# (issue_comment) or on a review-line comment (pull_request_review_comment)
+# runs the same local /code-review pass as the automatic workflow, on
+# demand. anthropics/claude-code-action does the trigger-phrase matching
+# itself (trigger_phrase below, and its own checkout of the right ref) —
+# no custom `if: contains(...)` gating needed for that part.
+name: Claude Code Review (on-demand)
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  # Required for OIDC authentication to the Claude GitHub app — the same
+  # gap that silently broke claude-review.yml's automatic pass (see that
+  # file's own comment on this permission).
+  id-token: write
+
+jobs:
+  review:
+    # issue_comment fires for both issues and PRs; only react on PRs.
+    # pull_request_review_comment only ever fires on PRs, so it always
+    # passes. The actual "/review" phrase match is the action's own job.
+    if: >
+      github.event_name == 'pull_request_review_comment' ||
+      github.event.issue.pull_request != null
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Run Claude Code review (local /code-review, on demand)
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          trigger_phrase: "/review"
+          claude_args: '--max-turns 20'
+          prompt: |
+            Review this pull request's diff for correctness bugs and
+            reuse/simplification/efficiency issues, per this repo's
+            code-review conventions (see /code-review skill and
+            DOC/architecture/clean_code_rules.md).
+
+            Run the local /code-review skill yourself as a fresh-context
+            background subagent.
+
+            Post findings as inline PR review comments. Do not approve or
+            request changes on the PR itself — this review is advisory only
+            (AW-13); a human retains merge authority.
