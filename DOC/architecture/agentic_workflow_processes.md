@@ -127,9 +127,11 @@ flowchart TD
 
 **Current implementation status, not just the target shape**: `claude-review.yml` today always runs the local `/code-review` path (node E) — the managed-service branch (node D) has no real integration behind it yet, `CLAUDE_REVIEW_TIER=managed` would just be a prompt string with nothing to switch to. Wiring an actual managed-service branch is tracked, not silently assumed done.
 
+**Node B's two trigger shapes, reconciled (2026-09-18):** the diagram names both "on PR event" (automatic) and "`@claude`" (interactive/on-demand) as the same entry point, but only the automatic half existed until now — `claude-review.yml`'s `permissions:` was also missing `id-token: write`, so even that automatic half was silently failing (the OIDC token request errored before the review step ran, masked by the check-run's hardcoded-neutral conclusion). Both are fixed as of this note: `claude-review.yml` has `id-token: write`, and `claude-review-on-demand.yml` adds the `@claude`/`on-demand` half, triggered by commenting `/review` on a PR.
+
 | ID | Rule | Surface | Notes |
 |---|---|---|---|
-| AW-11 | Every non-draft PR routes through the GitHub Action automatically — not opt-in per PR. A draft PR is re-evaluated once it's marked ready for review (the workflow's `ready_for_review` trigger), but one merged while still draft would never get reviewed — a deliberate cost trade-off (drafts iterate heavily), not an oversight. | GitHub Action config | ADR-0004 Part 4 |
+| AW-11 | Every non-draft PR into `int` (dev → int) routes through the GitHub Action automatically — not opt-in per PR; the `int` → `main` promotion PR is deliberately not re-reviewed (2026-09-19). A draft PR is re-evaluated once it's marked ready for review (the workflow's `ready_for_review` trigger), but one merged while still draft would never get reviewed — a deliberate cost trade-off (drafts iterate heavily), not an oversight. | GitHub Action config | ADR-0004 Part 4 |
 | AW-12 | Review surface (managed service vs. local `/code-review`) is selected automatically by plan-tier availability, checked once and cached, not re-verified per PR | GitHub Action config | Verify plan-tier availability once when wiring this up (ADR-0004's named unresolved item) |
 | AW-13 | Check-run conclusion is always neutral regardless of findings — merge authority never leaves the human reviewer | GitHub Action config | Matches Part 3's same default-deny-on-unapproved-merge posture |
  
