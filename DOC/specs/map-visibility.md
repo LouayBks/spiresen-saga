@@ -44,7 +44,7 @@ A non-member who is allowed to read (unlisted or public) gets the whole Map read
 
 ### The public gallery
 
-The gallery lists `public` Maps only, newest-published first, in bounded pages. Each entry carries the Map's name and enough to open it — **not** the owner's identity: no name or email is stored for users (`accounts-and-auth.md` decides identity comes from the JWT), and exposing it is a privacy decision this spec does not make (see Open questions). A Map's place in the gallery is set by when it last became public: making it public records that moment; making it `unlisted` or `private` and public again resets it.
+The gallery lists `public` Maps only, newest-published first, in bounded pages. Each entry carries the Map's name, its owner's **handle and username** (`accounts-and-auth.md` — both are public labels the user chose or can change), and enough to open it. It never carries the owner's email or any other identity. A Map's place in the gallery is set by when it last became public: making it public records that moment; making it `unlisted` or `private` and public again resets it.
 
 ### Revocation
 
@@ -69,7 +69,7 @@ Because an `unlisted` Map's only protection is its link, the top-level Map ident
 | BHV-5 | IF a requester who is not a member reads a `private` Map, or anything under it, THEN THE backend SHALL answer as not found (404). | ✅ — integration test: as a non-member and as an anonymous requester, read a private Map and a Node's content under it, assert 404 for both | Does not confirm existence. |
 | BHV-6 | WHEN a member reads a Map, THE backend SHALL return it regardless of its visibility. | ✅ — integration test: as the owner, read a `private`, an `unlisted` and a `public` Map, assert success for all | |
 | BHV-7 | WHEN a requester who is not a member attempts to write to a `public` or `unlisted` Map, THE backend SHALL reject it with 403. | ✅ — integration test: anonymous and non-member writes against a public Map, assert rejection and no change | Visibility never grants write. Same rule as `accounts-and-auth.md` BHV-6. |
-| BHV-8 | WHEN a requester asks for the public gallery, THE backend SHALL return `public` Maps only, newest-published first, in bounded pages. | ✅ — integration test: create private, unlisted and public Maps, assert only the public one is listed; create several public Maps, assert order and paging | Never includes `unlisted` or `private` Maps. |
+| BHV-8 | WHEN a requester asks for the public gallery, THE backend SHALL return `public` Maps only, newest-published first, in bounded pages, each entry showing the Map's name and its owner's handle and username. | ✅ — integration test: create private, unlisted and public Maps, assert only the public one is listed with its owner's handle and username and no email; create several public Maps, assert order and paging | Never includes `unlisted` or `private` Maps. |
 | BHV-9 | WHEN a Map's visibility changes from `public` to `unlisted` or `private`, THE backend SHALL refuse a subsequent read of it by a non-member. | ✅ — integration test: make a public Map private, immediately read it as a non-member, assert 404 | Immediate for opening. The gallery listing itself may lag briefly (see Revocation). |
 | BHV-10 | WHEN a Map becomes `public` from any other visibility, THE backend SHALL record that moment as its published time, used to order the gallery. | ✅ — integration test: publish A, then B, then republish A, assert gallery order B before A | |
 | BHV-11 | WHEN an owner lists their own Maps, THE backend SHALL report each Map's visibility. | ✅ — integration test: list Maps with mixed visibilities, assert each entry carries its visibility | Lets the UI show a lock or link indicator. |
@@ -86,14 +86,13 @@ Because an `unlisted` Map's only protection is its link, the top-level Map ident
 | CON-5 | A top-level Map's identifier MUST be unguessable (randomly generated, not derived from a name, email or counter). | `unlisted` access rests on the link alone. |
 | CON-6 | A non-member's read of a `private` Map MUST NOT reveal that it exists (not-found, never forbidden). | Writes are excluded: BHV-7 keeps 403. |
 | CON-7 | The public gallery MUST NOT list `unlisted` or `private` Maps, and MUST be answerable in bounded pages **without a table scan**. | Anticipated requirement for #36. |
-| CON-8 | A public gallery entry MUST NOT expose the owner's identity in v1. | No name/email is stored for users; exposing identity is not decided here. |
+| CON-8 | A public gallery entry MUST show the owner's handle and username and MUST NOT expose the owner's email or any other identity. | Reverses the first draft (which withheld owner identity because none was stored); `accounts-and-auth.md` now provides handle and username. |
 | CON-9 | A read authorization decision MUST be answerable from a single lookup of the top-level Map's record, before any of the Map's contents are loaded — a refused read MUST cost no more than that lookup. | Anticipated requirement for #36. Prevents an anonymous requester from making the backend load a large private Map only to discard it. |
 | CON-10 | Changing visibility MUST be a single narrow write to that one Map's record, and MUST take effect for opening the Map immediately. | Anticipated requirement for #36. The gallery listing may lag briefly (BHV-9's note). |
 | CON-11 | The visibility value MUST be part of a Map's own reported state, readable by a member in the same request that returns the Map. | Lets the UI show it without another call. |
 
 ## Open questions
 
-- **Owner attribution in the gallery** — CON-8 withholds it for v1. Showing "by <name>" needs either storing a public display name or a user-chosen handle; not designed here.
 - **Moderation of the public gallery** — a public listing invites abuse (spam, harmful content). A report/takedown path is real, unresolved scope; nothing in this spec provides one, and anyone able to sign in can publish. Flagged before the gallery ships, not designed here.
 - **Search-engine indexing** — whether `unlisted` pages should carry a `noindex` signal and whether `public` ones should be indexable. A frontend/infra concern, not a modeling one.
 - **Link rotation for `unlisted`** — the only revocation is switching to `private`; a Map's link never changes. A "regenerate link" action would need a second identifier and is not offered.
@@ -102,4 +101,4 @@ Because an `unlisted` Map's only protection is its link, the top-level Map ident
 
 ## Out of scope
 
-No implementation. No DynamoDB key, item or index shape, and no transaction mechanics — that is #36's decision, informed by CON-7, CON-9 and CON-10 (recorded in `ADR-007`). No gallery UI, no visibility picker UI, no account-settings changes. No collaboration/sharing invites (`accounts-and-auth.md` CON-3 keeps the role model inert). No moderation, owner attribution, or forking/copying of another user's Map.
+No implementation. No DynamoDB key, item or index shape, and no transaction mechanics — that is #36's decision, informed by CON-7, CON-9 and CON-10 (recorded in `ADR-007`). No gallery UI, no visibility picker UI, no account-settings changes. No collaboration/sharing invites (`accounts-and-auth.md` CON-3 keeps the role model inert). No moderation, no per-user profile page (listing one user's public Maps), and no forking/copying of another user's Map.

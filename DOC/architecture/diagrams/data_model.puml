@@ -22,6 +22,8 @@ enum LinkType {
 class User {
   sub : string
   createdAt : datetime
+  username : string
+  handle : string "unique, [a-z0-9_]+"
 }
 class Membership {
   role : Role
