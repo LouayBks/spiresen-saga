@@ -91,7 +91,7 @@ One table, generic key attributes `PK` and `SK` (both strings), on-demand billin
 | AP-10 | Create / delete a View | `TransactWriteItems` | META `viewCount` conditions enforce 1..3 (BHV-2/3). Delete = View item first, then best-effort cleanup. |
 | AP-11 | Attach / remove an article | `TransactWriteItems` | Put/Delete `ARTICLE` + Update tile `hasArticle`; attach requires `childCount = 0` and `imageCount = 0`. |
 | AP-12 | Rename a Map | `UpdateItem` on META | The single canonical name (CON-6). |
-| AP-13 | Add / remove gallery images | `TransactWriteItems` | Update `DETAIL` `images` (cap 10, upsert) + Update tile `imageCount`; requires tile `childCount = 0` and `hasArticle = false`. |
+| AP-13 | Add / remove gallery images | `TransactWriteItems` | Update `DETAIL` `images` (cap 10, upsert) + Update tile `imageCount` — and, when the first image is added to a node with no cover, tile `coverImage` (`content-authoring.md` BHV-17); requires tile `childCount = 0` and `hasArticle = false`. |
 | AP-14 | Open a node | one `Query PK = CONTENT#{nodeId}` | Detail plus, if present, the article. Absent items mean "empty". |
 | AP-15 | Edit title / date / size / cover | `UpdateItem` on the tile | Single item, no transaction. |
 | AP-16 | Edit body | `TransactWriteItems` when the excerpt changes, else `UpdateItem` | `DETAIL` `body` + tile `excerpt` together. |
@@ -101,6 +101,9 @@ One table, generic key attributes `PK` and `SK` (both strings), on-demand billin
 | AP-20 | Browse the public gallery | `Query GSI1` on `GSI1PK = MAP#PUBLIC`, descending, then one `BatchGetItem` of the page's owners' profiles | Public Maps only, newest-published first, paged (map-visibility BHV-8); each entry shows name, owner handle and username, never email. The index is eventually consistent and projects `name` and `ownerSub`. Not a scan. |
 | AP-21 | Change a Map's visibility | `UpdateItem` on the root META | To `public`: set `visibility`, `publishedAt` and the index keys; leaving `public`: remove the last three. Owner only; rejects a nested Map (map-visibility BHV-2/3/12). |
 | AP-22 | Change username | `UpdateItem` on the profile | Single item, no uniqueness check (accounts-and-auth BHV-11). |
+| AP-23 | Delete a Map (cascade) | delete + cleanup | Owner-only. Delete the root META first (the Map is unreachable at once, and leaves the gallery index in the same write), delete the memberships, then remove Nodes, Links, Views and content partitions (recursively into nested Maps) in bounded batches; not atomic above 100 items, leftovers are unreachable, not corrupt (`map-lifecycle.md` BHV-4/5). |
+| AP-24 | Add a View | `TransactWriteItems` | META `viewCount` condition (< 3), Put the View (ordered last), and copy the active View's position into every Node's tile — batched in bounded transactions when the Map has many Nodes (`map-lifecycle.md` BHV-7). |
+| AP-25 | Rename / reorder / delete a View | `UpdateItem` / `TransactWriteItems` | Rename is a single update; reorder rewrites the (at most three) Views' `order`; delete removes the View item first, then its Links and each tile's `positions[viewId]` best-effort, and closes the order gap (`map-lifecycle.md` BHV-8..10). |
 
 There is **no Scan** anywhere in v1.
 
@@ -134,7 +137,7 @@ There is **no Scan** anywhere in v1.
 
 ## 6. Lifecycle and risk notes
 
-- **DynamoDB limits that shape this**: 400 KB per item; 100 items per transaction; 25 per batch write; 1 MB per Query page; a single partition key is capped near 1000 WCU / 3000 RCU per second. At 50 Nodes a Map load is bounded by construction — tiles of about 0.5 KB typical and 2 KB worst case, up to 300 Links, plus META and Views — on the order of 0.1–0.2 MB, inside one page and independent of body, URL or gallery size.
+- **DynamoDB limits that shape this**: 400 KB per item; 100 items per transaction; 25 per batch write; 1 MB per Query page; a single partition key is capped near 1000 WCU / 3000 RCU per second. At 50 Nodes a Map load is bounded by construction — tiles of about 0.5 KB typical and about 6 KB worst case (multibyte text at DynamoDB's 4 bytes per character, longest preview), up to 300 Links, plus META and Views — typically tens of KB and at most about 0.5 MB, inside one page and independent of body, URL or gallery size.
 - **Cascade delete is not atomic beyond 100 items.** Deleting a Node with a large nested subtree deletes the Node item first, which makes everything below it unreachable, then cleans up orphan partitions synchronously in bounded batches. With ≤ 50 Nodes per Map and nesting, the worst case is bounded per level but recursive; if a cleanup fails midway the leftovers are unreachable, not corrupt. A sweeper for orphans is a future item, not v1.
 - **Derived fields** (`nodeCount`, `viewCount`, `linkCount`, `childCount`, `imageCount`, `hasArticle`, `excerpt`) can drift only if a write path bypasses the transaction that maintains them. They are written only inside those transactions, and every one of them has a test (TS-2/TS-3).
 - **New View vs. concurrent node create** can leave a Node without a position in the new View. Readers fall back to the Node's position in another View; a new View is seeded by copying the active View's positions.
@@ -146,26 +149,27 @@ There is **no Scan** anywhere in v1.
 
 ## 7. Limits
 
-All are constants in one settings module — tunable without a schema change.
+**Suggested starting values, all constants in one settings module — tunable without a schema change, to be adjusted as real use teaches us.** Checked 2026-09-19 against DynamoDB's byte-based limits (UTF-8, up to 4 bytes per character; 400 KB per item; 1 MB per `Query` page); two earlier figures were corrected (article length, detail-item guard), noted below.
 
-| Limit | Value | Basis |
+| Limit | Suggested value | Basis |
 |---|---|---|
-| Nodes per Map | **50** (decided 2026-09-19) | one-page Map load; "tens of boxes, not thousands" (`boxes-plan.md`) |
-| Links per View | 100 | proposal: about 2 per Node at 50 Nodes — confirm |
+| Nodes per Map | **50** (decided) | one-page Map load; "tens of boxes, not thousands" (`boxes-plan.md`) |
+| Links per View | 100 | about 2 per Node at 50 Nodes |
 | Views per Map | 3 | alternate-views CON-1 |
-| Node `size` max | 12 per side | proposal — a grid needs some bound |
+| Node `size` max | 12 per side | matches the grid's 12 columns (`window-system.md`) |
 | Images per gallery | 10 | content-authoring CON-10 |
-| `urls` per Node | no count cap | guarded only by the `DETAIL` item's serialized size (about 64 KB) — proposal; it never affects a Map load |
-| Tile fields | `title` 200, `date` 30, `excerpt` 200 chars; `preview` fields ~300 | proposal; these caps are what bound a Map load, so treat them as schema constants |
-| Map-load payload | ≲ 0.2 MB by construction | 50 tiles ≤ 2 KB, ≤ 300 Links ≤ 0.2 KB, plus META and Views |
-| `title` / `note` / `body` | 200 / 1,000 / 10,000 chars | proposal; the UI's overflow warning stays soft |
-| Link `label`, Image `caption` | 100 / 200 chars | proposal |
-| Map name / View name | 100 / 50 chars | proposal |
-| Handle / username | 3–20 / 1–20 chars | decided 2026-09-19 by the owner (accounts-and-auth CON-8) |
-| Article markdown | 100K chars | proposal; far under the 400 KB item limit |
+| `urls` per Node | no count cap; each URL ≤ 2,048 chars | bounded only by the `DETAIL` item's serialized size guard below — it never affects a Map load |
+| `DETAIL` item guard | 100 KB serialized | corrected from 64 KB: a 10,000-character `body` can be 40 KB in multibyte text, and 64 KB left too little for the uncapped URLs; 100 KB leaves room for ~100 URLs and stays far under 400 KB |
+| Tile fields | `title` 200, `date` 30, `excerpt` 200 chars; `preview`: url ≤ 2,048, `thumbnailUrl` ≤ 512, `title` ≤ 100; `coverImage` key ≤ 512 | these caps are what bound a Map load — treat them as schema constants |
+| Map-load payload | ≲ 0.5 MB worst case, typically tens of KB | 50 tiles ≤ ~6 KB, ≤ 300 Links ≤ ~0.6 KB (label 100 chars), plus META and Views |
+| `title` / `note` / `body` | 200 / 1,000 / 10,000 chars | the UI's overflow warning stays soft |
+| Link `label`, Image `caption` | 100 / 200 chars | short labels |
+| Map name / View name | 100 / 50 chars | display text |
+| Handle / username | 3–20 / 1–20 chars | decided (accounts-and-auth CON-8) |
+| Article markdown | 50K chars | corrected from 100K: at 4 bytes per character 100K chars is exactly the 400 KB item limit; 50K is ≤ 200 KB worst case (roughly 8,000 words of ordinary text) |
 | Nesting depth | no cap | window-system decision; key-length limits are nowhere near |
 | Image upload | 10 MB, jpg/png/webp | content-authoring CON-1 |
-| Page size (My Maps, gallery) | about 20 | proposal; keeps each page small |
+| Page size (My Maps, gallery) | about 20 | keeps each page small |
 
 ## 8. Identifiers
 
@@ -197,14 +201,13 @@ Add to the `api` Terraform module: the table (`PAY_PER_REQUEST`, point-in-time r
 
 ## 12. Open items
 
-1. ~~`MAP#ALL` directory~~ — considered and dropped in ADR-007 D2; the gallery is `GSI1`.
-1a. Gallery tile thumbnail: the tile carries `coverImage` only. If a gallery node without a cover should show its first image, the tile also needs a `firstImage` key (one short string) — not decided.
-2. Grid drag-rearrange: is a drag inside a grid View persisted, and where (`window-system.md` open question)?
-3. `LinkType` value set (`theme | timeline | soft` vs. `causal`) — spec inconsistency to resolve.
-4. Confirm the proposed limits marked "proposal" in §7.
-5. Whether "+ New Map" seeds the two placeholders like first login (currently assumed yes).
-6. ~~Map visibility~~ — specified in `map-visibility.md` (private / unlisted / public, default private). Still open there: moderation/takedown for public Maps (backlog ticket #52), search-engine indexing, and link rotation for `unlisted`. Owner attribution is now settled (handle + username, `accounts-and-auth.md`).
-7. Amend `boxes-plan.md` (§2 schema, §4 tiers, §7a) — flagged by the specs' "updates once accepted" notes, not done here.
+Everything from the earlier list was decided on 2026-09-19 (see `DOC/specs/`): `LinkType` is `theme | timeline | soft`; grid mechanics and drag persistence are `window-system.md`'s initial defaults; a gallery's first image becomes the default cover (`content-authoring.md` BHV-17), so the tile needs no `firstImage`; new Maps are seeded with two guiding notes on every top-level creation; the numbers in §7 are suggested starting values to tune as we learn; `boxes-plan.md` and `application_architecture.md` are updated. What remains:
+
+1. **Moderation and takedown for public Maps** — ticket #52. It must land before the public gallery ships.
+2. **Account deletion, leave-Map, data export, and cleanup of orphaned media** — ticket #54.
+3. **Mobile presentation** of a Map below a width breakpoint — no spec decides it (`boxes-plan.md` §3).
+4. **The AW-4 plan review and `risk-paths.json` patterns** — process gates for #57; the patterns file is a human-only governance edit.
+5. **Acceptance of `ADR-007`** — this doc stays a proposal until the ADR is accepted, at which point `application_architecture.md`'s schema section (already updated to match) becomes authoritative.
 
 ## 13. Traceability
 

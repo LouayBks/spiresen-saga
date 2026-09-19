@@ -73,7 +73,7 @@ The Map's partition holds only tiles, views, links and meta; a node's full text 
 | 3 | 3 | 3 | 2 | 2 | 2 | 2 | 3 |
 
 Contested points:
-- **A is 3 by construction.** Tile fields are individually capped (title, date, excerpt, preview, cover), so a 50-node Map is bounded — on the order of 0.1–0.2 MB even with multibyte text and the maximum links — regardless of how large bodies, URL lists or galleries get.
+- **A is 3 by construction.** Tile fields are individually capped (title, date, excerpt, preview, cover), so a 50-node Map is bounded — typically tens of KB, and at most about 0.5 MB even with worst-case multibyte text and the maximum Links (checked against DynamoDB's UTF-8 byte counting, 2026-09-19) — regardless of how large bodies, URL lists or galleries get.
 - **C is 3 for the dominant write.** A drag touches only a ~1 KB tile. Edits that change the excerpt must update tile and detail together, a transaction at twice the write cost; that is real but concerns a rare, larger write, and is skipped when the excerpt is unchanged.
 - **D is 2, not 3.** Exclusivity now spans two items (`childCount`/`imageCount`/`hasArticle` on the tile, images in the detail), so those checks are transactional rather than a single-item condition.
 - **E is 2.** Four tile fields are derived copies (`excerpt`, `imageCount`, `hasArticle`, `childCount`). They change only inside the transaction that changes their source, and each has a test; every other field has exactly one home.

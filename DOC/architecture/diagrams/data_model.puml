@@ -40,7 +40,7 @@ class Map {
 class View {
   id : string
   name : string
-  order : string "fractional"
+  order : int "1..3, contiguous"
   linkCount : int "max 100"
 }
 class Node {
