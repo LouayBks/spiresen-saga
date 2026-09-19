@@ -1,6 +1,6 @@
 # Spec: Alternate views (≤3 per Map) (#34)
 
-Format per `DOC/templates/spec_design_template.md` (ADR-006). Owns per-view position and Link storage. Cites `box-sizing.md` CON-1 rather than redeciding it: tier does not vary by view. Does not touch `content-authoring.md`'s fields (`note`/`urls`/article body) — those stay identical across every view of a node, same as its inferred visualization state (`content-authoring.md` CON-8).
+Format per `DOC/templates/spec_design_template.md` (ADR-006). Owns per-view position and Link storage. Cites `box-sizing.md` CON-1 rather than redeciding it: size does not vary by view. Does not touch `content-authoring.md`'s fields (`note`/`urls`/article body) — those stay identical across every view of a node, same as its inferred visualization state (`content-authoring.md` CON-8).
 
 **Revision note (2026-09-18, part 1):** updated for `naming.md`'s rename — the top-level per-user collection is now **Map** (schema/code term), not "Saga." "Saga" is reserved for the product's public brand name and no longer appears in schema/key patterns.
 
@@ -11,6 +11,8 @@ Format per `DOC/templates/spec_design_template.md` (ADR-006). Owns per-view posi
 **Revision note (2026-09-18, part 4):** `kind` is retired as a stored field (`naming.md`, `content-authoring.md`). CON-2 below is updated accordingly.
 
 **Amendment (2026-09-18, `ADR-006`):** this spec originally decided physical DynamoDB key/item shapes for `Link` and `View` (literal `PK`/`SK` patterns, an explicit "own item" call for View, a chosen-over comparison against a `VIEWPOS#{viewId}#{nodeId}` item type). `ADR-006`'s amendment retroactively rules that out of a spec's scope — a spec decides the domain model and the requirements storage must satisfy, never the physical shape. The Decisions and Constraints below are rewritten accordingly: the domain-level calls (Link is view-scoped, View is a first-class entity, positions vary per view) stand unchanged: only the literal key syntax and item-type reasoning are replaced with requirement statements for `#36` (Data foundation) to satisfy.
+
+**Revision note (2026-09-19):** (1) `tier` → `size` throughout, per `box-sizing.md`'s revision (free grid-unit `{w, h}`, still identical across Views). (2) `positions[viewId]` `{x, y}` is measured in the same grid units as `size`. (3) A View's layout mode (grid vs. freeform) is derived from whether that View has any Link (`window-system.md` CON-6) — this spec's Link and position rules are unchanged by it, but note it is the reason a View's Link count matters beyond Link display.
 
 ## Objective
 
@@ -47,7 +49,7 @@ Replace `boxes-plan.md`'s auto-computed Timeline/Theme layout engine — confirm
 | ID | Statement | Notes |
 |---|---|---|
 | CON-1 | A Map MUST have between 1 and 3 Views (inclusive) at all times. | Enforced by BHV-1 (floor) and BHV-2/BHV-3 (ceiling/floor on mutation). |
-| CON-2 | A Node's inferred visualization state, `tier`, `note`, `urls`, and content body MUST be identical across every View — only `positions[viewId]` and View-scoped Links vary. | Cross-references `box-sizing.md` CON-1 (tier) and `content-authoring.md` CON-8 (visualization inference) rather than re-deciding either. Updated from "`kind`," now retired. |
+| CON-2 | A Node's inferred visualization state, `size`, `note`, `urls`, and content body MUST be identical across every View — only `positions[viewId]` and View-scoped Links vary. | Cross-references `box-sizing.md` CON-1 (size) and `content-authoring.md` CON-8 (visualization inference) rather than re-deciding either. Updated from "`kind`," now retired. |
 | CON-3 | A `Link` MUST belong to exactly one View — `viewId` MUST be an intrinsic part of what identifies a Link, not a shared/multi-view reference. | The relationship-in-two-views case is modeled as two separate Links, not one shared one — see Decisions. Storage realization (whether `viewId` is literally part of a physical key) is #36's decision. |
 | CON-4 | A Map's Nodes, Links, and Views MUST remain fetchable together in a single request — introducing View as an entity MUST NOT require a second request or a per-view endpoint. | Anticipated requirement for #36, preserving the Lambda-lean, single-request-per-Map design named in `application_architecture.md`, without asserting how #36 achieves it. |
 | CON-5 | Deleting a View MUST delete only that View's own Links and its nodes' `positions[viewId]` entries — it MUST NOT delete the nodes themselves or their other Views' data. | Direct consequence of CON-3's per-view Link ownership. |

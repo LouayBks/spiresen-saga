@@ -1,0 +1,83 @@
+@startuml physical_layout
+hide empty members
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+left to right direction
+
+package "PK = USER#{sub}   (read: list my Maps, authorize a write)" {
+  class "SK = PROFILE" as U1 {
+    createdAt
+    username
+    handle
+  }
+  class "SK = MEMBER#{rootMapId}" as U2 {
+    role
+    joinedAt
+  }
+}
+
+package "PK = MAP#{mapId}   (ONE Query = open a Map: tiles only)" {
+  class "SK = META" as M1 {
+    name (root only)
+    nodeCount
+    viewCount
+    ownerSub (root only)
+    visibility (root only)
+    publishedAt (only while public)
+    GSI1PK, GSI1SK (only while public)
+  }
+  class "SK = VIEW#{viewId}" as M2 {
+    name
+    order
+    linkCount
+  }
+  class "SK = NODE#{shortId}   (tile)" as M3 {
+    title
+    date
+    size
+    positions
+    coverImage
+    preview
+    excerpt
+    childCount
+    imageCount
+    hasArticle
+  }
+  class "SK = LINK#{viewId}#{lo}#{hi}" as M4 {
+    type
+    label
+  }
+}
+
+package "PK = CONTENT#{nodeId}   (ONE Query = open a node)" {
+  class "SK = DETAIL" as C1 {
+    body
+    note
+    urls
+    images
+  }
+  class "SK = ARTICLE" as C2 {
+    markdown
+  }
+}
+
+package "GSI1 (sparse): GSI1PK = MAP#PUBLIC   (gallery: newest-published first, no Scan)" {
+  class "GSI1SK = {publishedAt}#{mapId}" as G1 {
+    name (projected)
+    ownerSub (projected)
+    only public Maps
+  }
+}
+
+package "PK = HANDLE#{handle}   (unique claim: one owner per handle)" {
+  class "SK = HANDLE" as H1 {
+    sub
+  }
+}
+
+M3 ..> C1 : full text and links,\nfetched on open
+M3 ..> C2 : only when hasArticle
+U2 ..> M1 : root Map\n(nested Map id = node id)
+H1 ..> U1 : claim mirrors\nprofile handle
+M1 ..> G1 : index entry exists\nonly while public
+@enduml
