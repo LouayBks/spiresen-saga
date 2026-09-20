@@ -1,0 +1,97 @@
+name: infra-deploy-int
+
+# AW-24 (DOC/architecture/branching_strategy.md): int is a second, parallel deploy
+# target alongside prod (infra-deploy.yml) — plan on PR, apply only on push to int,
+# no workflow_dispatch. Unlike prod's apply job, this one runs unattended (no
+# required-reviewer gate) since int is the fast-iteration environment; a human still
+# gates every merge into int via required PR review, same as main.
+
+on:
+  pull_request:
+    paths:
+      - "infra/**"
+      - "backend/**"
+      - ".github/workflows/infra-deploy-int.yml"
+  push:
+    branches: [int]
+    paths:
+      - "infra/**"
+      - "backend/**"
+      - ".github/workflows/infra-deploy-int.yml"
+
+permissions:
+  id-token: write # required for GitHub OIDC -> AWS role assumption
+  contents: read
+  pull-requests: write # plan job comments the plan output on the PR
+
+defaults:
+  run:
+    working-directory: infra/environments/int
+
+env:
+  TF_VERSION: "1.11.2"
+  AWS_REGION: "eu-west-3" # stack's primary region (Paris); ACM's forced us-east-1 is handled inside Terraform via a provider alias, not here
+
+jobs:
+  plan:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    # environment: int here (not just on apply) is deliberate: GitHub mints a
+    # completely different OIDC sub claim for a job that declares an environment
+    # (environment:int) vs one that doesn't (pull_request) — so without this, plan
+    # never exercises the same auth path apply actually uses, and a trust-policy gap
+    # in that path only surfaces for real once merged. int has no required-reviewer
+    # protection rule, so this adds zero approval friction (unlike prod — see
+    # infra-deploy.yml's plan job, which intentionally does NOT do this).
+    environment: int
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: ./build_lambda.sh
+        working-directory: backend
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - run: terraform fmt -check -recursive ../../
+      - run: terraform init -input=false
+      - run: terraform validate
+      - run: terraform plan -input=false -no-color -out=tfplan
+      - run: terraform show -no-color tfplan > plan.txt
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('infra/environments/int/plan.txt', 'utf8').slice(0, 60000);
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `### Terraform plan — infra/environments/int\n\`\`\`\n${plan}\n\`\`\``,
+            });
+
+  apply:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/int'
+    runs-on: ubuntu-latest
+    environment: int # unprotected — exists for variable scoping (STATIC_SITE_BUCKET_NAME etc.), not a reviewer gate
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: ./build_lambda.sh
+        working-directory: backend
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - run: terraform init -input=false
+      - run: terraform apply -input=false -auto-approve

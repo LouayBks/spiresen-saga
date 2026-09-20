@@ -1,2 +1,27 @@
-draft/
-.CLAUDE
+__pycache__/
+*.pyc
+
+# backend/
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+build/
+
+# frontend/
+node_modules/
+dist/
+.angular/
+coverage/
+
+# infra/ (Terraform)
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
