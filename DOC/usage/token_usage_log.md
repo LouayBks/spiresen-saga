@@ -75,9 +75,18 @@ Per-ticket token usage, captured via `npx ccusage@latest session` (see [README.m
 | Session | Agent | Models | Input | Output | Cache Create | Cache Read | Total Tokens | Cost (USD) |
 |---|---|---|---|---|---|---|---|---|
 | `e66b32fa-0bd5-4b20-9823-df0afcd61bcc` | Claude | sonnet-5 | 306 | 262,804 | 1,241,860 | 33,594,655 | 35,099,625 | $14.32 |
-| **Aggregate** | | | **306** | **262,804** | **1,241,860** | **33,594,655** | **35,099,625** | **$14.32** |
+| `6189afa4-b0bb-4504-9ea2-9cc6123e0254` | Claude | sonnet-5 | 22 | 15,056 | 155,838 | 729,628 | 900,544 | $0.92 |
+| `a18e9788-a0d1-4f35-be47-c4c8ce16d3a9` | Claude | sonnet-5 | 16 | 5,710 | 94,514 | 392,698 | 492,938 | $0.51 |
+| `650856ef-98d8-40f8-8aa7-27ce21698355` | Claude | sonnet-5 | 18 | 7,014 | 84,978 | 439,152 | 531,162 | $0.50 |
+| **Aggregate** | | | **362** | **290,584** | **1,577,190** | **35,156,133** | **37,024,269** | **$16.25** |
 
 *`e66b32fa` (2026-09-18/19, checkpoint 2): still design only — no implementation code. Since the first checkpoint: dropped the `MAP#ALL` directory (ADR-007 D2) and added usernames/handles with unique-handle claims (D4); specified `map-visibility.md` and the new `map-lifecycle.md` (a CRUD coverage matrix, Map deletion, View operations); closed remove/edit gaps and the grid mechanics in the other specs; rewrote `boxes-plan.md` and `application_architecture.md`; corrected two limits against DynamoDB's byte-based item size (article length, detail-item guard); split #36 into a design pass plus tickets #53 (data-layer infra), #56 (auth infra), #57 (CRUD backend), #55 (account UI) and #54 (deferred account deletion), and refreshed #23 and #37–#41; added the `CLAUDE.md` pointers and retired the fractional-order high-risk area in the governance docs and agent definitions (`3906e66`). Includes web research on username length norms and DynamoDB doc lookups. Ends at the merge-readiness check on PR #51; re-run `ccusage` if the session continues into the #57 plan or the AW-4 `plan-reviewer` pass.*
+
+*`6189afa4` (2026-09-19/20): review-only session, no files changed except this log. Reviewed PR #51 and ADR-007 (with the cartography, governance edits and spec references) and reported infractions by criticality: no critical items; medium findings on acceptance without independent review, the "docs only" claim vs. governance-file edits, and the unstated ASCII assumption behind the Map-load bound; low findings on nested-Map delete/exclusivity gaps and Map-delete ordering. Figures cover the session up to this log entry.*
+
+*`a18e9788` (2026-09-19/20): second review-only session on PR #51 — read ADR-007 and `data_cartography.md`, checked the PR through `gh` (the GitHub MCP server failed to connect), and reported design gaps (unchecked upsert of content items, nested-Map META creation, tied scoring, GSI projection mismatch, stale PR body). No files changed apart from this log.*
+
+*`650856ef` (2026-09-19/20): third review-only session on PR #51, no files changed except this log. Used `gh` (the GitHub MCP failed to connect) and audited ADR-007 against the cartography. Found the PR head (`3906e66`) lacked the two local commits that close the ADR-007 review gaps, and that the CI review had not actually run. Listed ADR gaps: dangling Links after a Node delete, no cleanup retry, gates fitted to the winning option, one stale cartography line (76), untested `moto` paths. Figures are as of this entry and grow slightly with later turns.*
 
 
 ## Ticket #22 — Prioritization and delivery sequencing (branch `dev/louay/22-prioritization`)
