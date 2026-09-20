@@ -79,3 +79,12 @@ Per-ticket token usage, captured via `npx ccusage@latest session` (see [README.m
 
 *`e66b32fa` (2026-09-18/19, checkpoint 2): still design only — no implementation code. Since the first checkpoint: dropped the `MAP#ALL` directory (ADR-007 D2) and added usernames/handles with unique-handle claims (D4); specified `map-visibility.md` and the new `map-lifecycle.md` (a CRUD coverage matrix, Map deletion, View operations); closed remove/edit gaps and the grid mechanics in the other specs; rewrote `boxes-plan.md` and `application_architecture.md`; corrected two limits against DynamoDB's byte-based item size (article length, detail-item guard); split #36 into a design pass plus tickets #53 (data-layer infra), #56 (auth infra), #57 (CRUD backend), #55 (account UI) and #54 (deferred account deletion), and refreshed #23 and #37–#41; added the `CLAUDE.md` pointers and retired the fractional-order high-risk area in the governance docs and agent definitions (`3906e66`). Includes web research on username length norms and DynamoDB doc lookups. Ends at the merge-readiness check on PR #51; re-run `ccusage` if the session continues into the #57 plan or the AW-4 `plan-reviewer` pass.*
 
+
+## Ticket #22 — Prioritization and delivery sequencing (branch `dev/louay/22-prioritization`)
+
+| Session | Agent | Models | Input | Output | Cache Create | Cache Read | Total Tokens | Cost (USD) |
+|---|---|---|---|---|---|---|---|---|
+| `93ee08df-a7ee-4d87-9967-22088b1bee17` | Claude | sonnet-5 | 74 | 51,931 | 117,775 | 2,351,709 | 2,521,489 | $1.46 |
+| **Aggregate** | | | **74** | **51,931** | **117,775** | **2,351,709** | **2,521,489** | **$1.46** |
+
+*`93ee08df` (2026-09-20, final total for this branch): planning only, no application code. Read the eleven planned tickets and the agentic-workflow docs; worked out the ticket dependency graph; iterated the split of #57 from a backend-module cut, to per-slice infra, to full-stack feature PRs (19 PRs down to 8); found that a push to any `dev/**` branch auto-applies Terraform to the one shared dev environment (last-push-wins), which constrains where infra can live. Wrote `ADR-008` and `DOC/architecture/delivery_sequence.md`. Ends with the owner confirming the feature-PR sequence; the GitHub ticket amendments and #22 log comment are still to do.*
