@@ -2,7 +2,7 @@
 
 The concrete order for the tickets planned after the design phase (#36 done). Reasoning and rules (`WS-*`) are in `ADR/ADR-008-work-slicing-and-sequencing.md`; this file is the living plan and should be updated as features merge. Behavior comes from `DOC/specs/`, the access patterns (`AP-*`) from `DOC/architecture/data_cartography.md`.
 
-**Status:** proposed 2026-09-20. The ticket mapping below is pending the owner's verification; until then the GitHub issues still carry their old scopes.
+**Status:** accepted by the owner 2026-09-20; GitHub issues re-scoped to match (#57 reused as Foundation, labels unchanged: `NEW`).
 
 ## Features
 
@@ -11,7 +11,7 @@ One row = one issue = one PR into `int` (WS-1). Sub-branches run infra → backe
 | # | Feature (issue) | Sub-branches | Waits for | Gate |
 |---|---|---|---|---|
 | 0 | **Promote the spec phase** (`int` → `main`) | none | — | Human merge; prod deploy workflows run behind the prod reviewer gate. Unblocks `/review` on PRs. |
-| 1 | **Foundation** (#57, re-scoped) | kernel (models, one-file-per-entity mapper, limits, ids, repository skeleton, fail-closed dependency aliases, `risk-paths.json` patterns, kernel `CLAUDE.md`) → table infra → users / first-login provisioning (AP-1, 18, 22) | 0 | AP-1 on the real table |
+| 1 | **Foundation** (#57, re-scoped) | kernel (models, one-file-per-entity mapper, limits, ids, repository skeleton, fail-closed dependency aliases, `risk-paths.json` patterns — a human-only governance edit, proposed in the plan, kernel `CLAUDE.md`) → table infra → users / first-login provisioning (AP-1, 18, 22) | 0 | AP-1 on the real table |
 | 2 | **Sign-in and accounts** (#55, re-scoped; absorbs #56) | Cognito infra → auth (JWT/JWKS, AP-19 read decision, AP-4 write membership) → sign-in and account-settings UI | 1; the human-only Google OAuth client | — |
 | 3 | **Canvas and Nodes** (#37, re-scoped) | open-a-Map and Node/Link CRUD (AP-3, 5–9, 14, 15) → canvas core | 2 | AP-6, 7, 9 on the real table |
 | 4 | **Maps and Views** (#40, re-scoped) | Map list/rename/delete/visibility, Views (AP-2, 10, 12, 21, 23, 24, 25) → nav menu, View switcher (top level), Map settings | 3 | — |
@@ -36,7 +36,7 @@ One row = one issue = one PR into `int` (WS-1). Sub-branches run infra → backe
 - **Views** sit in feature 4 with Maps (both Map-level); **the gallery** sits in feature 7 with the public surfaces (`map-visibility.md` owns it).
 - **Foundation and sign-in are separate PRs** — foundation has no user-facing surface, and merging them would leave nothing mergeable until the whole chain is done (WS-5a).
 
-## Ticket mapping (pending verification)
+## Ticket mapping
 
 | Ticket | Becomes | Disposition |
 |---|---|---|

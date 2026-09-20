@@ -84,7 +84,7 @@ Per-ticket token usage, captured via `npx ccusage@latest session` (see [README.m
 
 | Session | Agent | Models | Input | Output | Cache Create | Cache Read | Total Tokens | Cost (USD) |
 |---|---|---|---|---|---|---|---|---|
-| `93ee08df-a7ee-4d87-9967-22088b1bee17` | Claude | sonnet-5 | 74 | 51,931 | 117,775 | 2,351,709 | 2,521,489 | $1.46 |
-| **Aggregate** | | | **74** | **51,931** | **117,775** | **2,351,709** | **2,521,489** | **$1.46** |
+| `93ee08df-a7ee-4d87-9967-22088b1bee17` | Claude | sonnet-5 | 98 | 76,417 | 147,474 | 4,009,239 | 4,233,228 | $2.16 |
+| **Aggregate** | | | **98** | **76,417** | **147,474** | **4,009,239** | **4,233,228** | **$2.16** |
 
-*`93ee08df` (2026-09-20, final total for this branch): planning only, no application code. Read the eleven planned tickets and the agentic-workflow docs; worked out the ticket dependency graph; iterated the split of #57 from a backend-module cut, to per-slice infra, to full-stack feature PRs (19 PRs down to 8); found that a push to any `dev/**` branch auto-applies Terraform to the one shared dev environment (last-push-wins), which constrains where infra can live. Wrote `ADR-008` and `DOC/architecture/delivery_sequence.md`. Ends with the owner confirming the feature-PR sequence; the GitHub ticket amendments and #22 log comment are still to do.*
+*`93ee08df` (2026-09-20, final total for this branch): planning only, no application code. Read the eleven planned tickets and the agentic-workflow docs; worked out the ticket dependency graph; iterated the split of #57 from a backend-module cut, to per-slice infra, to full-stack feature PRs (19 PRs down to 8); found that a push to any `dev/**` branch auto-applies Terraform to the one shared dev environment (last-push-wins), which constrains where infra can live. Wrote `ADR-008` and `DOC/architecture/delivery_sequence.md`. Ends with the owner confirming the feature-PR sequence, then applying it: seven issues (#57, #55, #37, #40, #39, #38, #41) retitled and re-scoped, #53 and #56 closed as superseded, the #22 log comment posted, and the CLAUDE.md pointer added.*
