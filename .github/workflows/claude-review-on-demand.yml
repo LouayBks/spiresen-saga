@@ -8,8 +8,28 @@
 # (issue_comment) or on a review-line comment (pull_request_review_comment)
 # runs the same local /code-review pass as the automatic workflow, on
 # demand. anthropics/claude-code-action does the trigger-phrase matching
-# itself (trigger_phrase below, and its own checkout of the right ref) —
-# no custom `if: contains(...)` gating needed for that part.
+# itself (trigger_phrase below) — no custom `if: contains(...)` gating
+# needed for that part. It does NOT check out the repo itself (an earlier
+# version of this comment claimed it did; that was wrong — the action's
+# first `git diff` failed with "Not a git repository" until an explicit
+# checkout step was added below).
+#
+# Two safety gates issue_comment needs that pull_request (used by
+# claude-review.yml) gets for free from GitHub itself:
+#
+# 1. Secrets exposure: `pull_request` withholds repo secrets from fork PRs
+#    automatically; `issue_comment` does not — it always runs in the base
+#    repo's context with full secrets, regardless of whose PR is being
+#    commented on. Since this repo is public, anyone could otherwise spend
+#    the repo owner's Claude Code OAuth usage by commenting "/review" on
+#    any PR. Gated below by requiring the commenter's author_association
+#    to be OWNER/COLLABORATOR/MEMBER.
+# 2. Untrusted diff content: even a trusted commenter can type "/review" on
+#    someone else's fork PR. Checking out that fork's head and handing its
+#    diff to an action with pull-requests:write/issues:write is the classic
+#    "pwn request" shape (attacker-controlled content reviewed by a job
+#    that can act with write permissions) — the same reason claude-review.yml
+#    skips fork PRs entirely. Detected and skipped the same way here.
 name: Claude Code Review (on-demand)
 
 on:
@@ -31,14 +51,58 @@ jobs:
   review:
     # issue_comment fires for both issues and PRs; only react on PRs.
     # pull_request_review_comment only ever fires on PRs, so it always
-    # passes. The actual "/review" phrase match is the action's own job.
+    # passes. The actor-association check is the secrets-exposure gate
+    # (see file header, point 1) — anyone able to comment on a public repo
+    # can otherwise trigger this and spend the repo owner's Claude usage.
     if: >
-      github.event_name == 'pull_request_review_comment' ||
-      github.event.issue.pull_request != null
+      (github.event_name == 'pull_request_review_comment' ||
+       github.event.issue.pull_request != null) &&
+      contains(fromJSON('["OWNER", "COLLABORATOR", "MEMBER"]'), github.event.comment.author_association)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      # issue_comment's payload has no github.event.pull_request — only
+      # github.event.issue.number (issues and PRs share the same numbering).
+      # pull_request_review_comment does carry github.event.pull_request
+      # directly. Normalized here so later steps don't need to branch on
+      # event type again.
+      - name: Resolve PR number
+        id: pr
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request_review_comment" ]; then
+            echo "number=${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "number=${{ github.event.issue.number }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Fork-PR gate (see file header, point 2). gh pr view's
+      # isCrossRepository field is true exactly when the PR head lives in a
+      # different repo (i.e. a fork) than this one.
+      - name: Detect fork PR (untrusted diff content — see file header)
+        id: fork_check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          is_fork=$(gh pr view "${{ steps.pr.outputs.number }}" --repo "${{ github.repository }}" --json isCrossRepository -q .isCrossRepository)
+          echo "is_fork=$is_fork" >> "$GITHUB_OUTPUT"
+
+      - name: Note skip on fork PR
+        if: steps.fork_check.outputs.is_fork == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr comment "${{ steps.pr.outputs.number }}" --repo "${{ github.repository }}" \
+            --body "/review skipped: this PR is from a fork. On-demand review only runs against PRs from this repository, to avoid feeding untrusted diff content to a workflow step with write permissions."
+
+      - name: Checkout PR
+        if: steps.fork_check.outputs.is_fork == 'false'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: refs/pull/${{ steps.pr.outputs.number }}/head
+
       - name: Run Claude Code review (local /code-review, on demand)
+        if: steps.fork_check.outputs.is_fork == 'false'
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
