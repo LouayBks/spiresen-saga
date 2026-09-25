@@ -33,9 +33,10 @@ relevant list below *in the same commit*, don't invent it silently.
 | `ci` | `.github/workflows/**` |
 | `refactor` | Restructuring with no behavior change (not `feat`, not `fix`) |
 | `test` | Test-only changes (adding/fixing tests, no production code) |
+| `revert` | A commit that undoes an earlier commit's change (`git revert`), not a hand-written undo |
 
 Deliberately excludes `assist(unit)`-style and bare `doc(...)` — those are the drift this doc
-exists to stop. `perf`, `style`, `revert` aren't added until a real change needs them (CC-15-style
+exists to stop. `perf`, `style` aren't added until a real change needs them (CC-15-style
 "ruthlessly prune" — don't pre-populate the list for hypothetical future use).
 
 ## CM-3 — Scopes (enumerated, closed list)
