@@ -14,8 +14,6 @@
       "Bash(git push origin int:*)",
       "Bash(git push *:main*)",
       "Bash(git push *:int*)",
-      "Bash(git push http://*)",
-      "Bash(git push https://*)",
       "Bash(gh pr merge:*)",
       "Bash(terraform apply:*)",
       "Bash(terraform destroy:*)"
@@ -29,16 +27,6 @@
           {
             "type": "command",
             "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/detect-high-risk.py"
-          }
-        ]
-      }
-    ],
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/session-start-log.py"
           }
         ]
       }
