@@ -2,7 +2,7 @@
 
 Companion to `agentic_workflow_processes.md` (AW-1..20) and ADR-004 Parts 2/3/8 — this defines
 *who* (human vs. Claude) may do *what* to *which branch*, and how that's enforced. Rule IDs
-continue that document's `AW-` sequence (AW-21..26) rather than starting a new namespace.
+continue that document's `AW-` sequence (AW-21..27) rather than starting a new namespace.
 
 **Open item, flagged not silently resolved:** AW-24 below (Claude never applies infra, ever)
 is stricter than ADR-004 Part 3's accepted text ("routine changes may apply directly"). This
@@ -217,6 +217,24 @@ on `git log`/`git blame` after the fact to tell what Claude did without having w
   issue #19 alongside AW-23's mechanical Hook, not built yet since no autonomous-session infra
   exists to distinguish "autonomous" from "interactive" in the first place.
 
+## AW-27 — PRs into `int` and `main` merge with a merge commit, never squash or rebase
+
+Squash and rebase merges write new commits, so the target branch no longer shares history with
+the source. PR #59 (`int` → `main`) was squash-merged: `main` got a single snapshot commit that
+`int` did not contain, and the next promotion (#63) conflicted on every file both sides had
+touched since, with no common ancestor to diff against. Squashing a `dev` → `int` PR also
+flattens the `--no-ff` sub-branch boundaries that ADR-008 WS-2 relies on for review.
+
+- Every PR into `int` or `main` uses **Create a merge commit**.
+- If a squash or rebase slips through on `main`, repair it on a `dev/<actor>/` branch cut from
+  `int` with `git merge -s ours origin/main`, after checking that `main`'s tree equals a commit
+  already in `int`; merge that PR with a merge commit too.
+
+**Severity: medium** — no data loss, but every later promotion conflicts until repaired.
+Rung 5 is the real control and is a human-only setting: disable **Allow squash merging** and
+**Allow rebase merging** under the repository's *Settings → General → Pull Requests*. Until then
+this rule sits on rung 1.
+
 ## Identity setup — human action items, not automatable by Claude
 
 Neither piece below can be created by Claude — account creation and App registration are
@@ -247,3 +265,4 @@ inherently human/admin actions. Listed here as a checklist, not yet executed:
 | AW-24 | Tightens ADR-004 Part 3 — flagged conflict above |
 | AW-25 | Restates AW-13/AW-11 as a branch-level rule |
 | AW-26 | New — no prior rule covered commit attribution |
+| AW-27 | New — no prior rule covered merge methods; protects ADR-008 WS-2's `--no-ff` boundaries |

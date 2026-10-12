@@ -8,7 +8,7 @@ it as a checklist.
 **Companions, not duplicates:** `DOC/ai_assistance/units_overview.md` (which of the five units
 fires on its own vs. needs invoking), `DOC/architecture/agentic_workflow_processes.md` (the
 rule-tagged mechanics, AW-1..20), `DOC/architecture/branching_strategy.md` (branch/actor rules,
-AW-21..26), `DOC/templates/plan_template.md` (the literal template referenced in step 2).
+AW-21..27), `DOC/templates/plan_template.md` (the literal template referenced in step 2).
 
 ## 0. Before your first ticket ever
 

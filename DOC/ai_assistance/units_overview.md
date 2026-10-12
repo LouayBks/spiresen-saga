@@ -83,7 +83,7 @@ deferral), so nothing here fires without a person or session asking for it.
 
 | Artifact | Path | Rule |
 |---|---|---|
-| Branching strategy doc | `DOC/architecture/branching_strategy.md` | AW-21..26 |
+| Branching strategy doc | `DOC/architecture/branching_strategy.md` | AW-21..27 |
 | Hard-deny list | `.claude/settings.json` (`permissions.deny`) | AW-22 (Tier 1) |
 | Code ownership | `CODEOWNERS` | AW-23 (Tier 2) |
 | GitHub branch protection on `main`/`int` | GitHub repo settings, not a file | AW-22/AW-25 |
