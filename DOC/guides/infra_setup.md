@@ -273,7 +273,7 @@ your step-2 session, if you'd rather not click through it):
    `pull_request`-triggered run's token never matches a `ref:refs/heads/main` condition, so
    scoping to only the push-to-main pattern leaves the `plan` job permanently unable to
    authenticate. Same reasoning adds a pattern for `int`: `infra-deploy-int.yml`/
-   `frontend-deploy-int.yml` (the int/`int.athar.spiresen.com` deploy target, AW-24) push-trigger
+   `frontend-deploy-int.yml` (the int/`int.saga.spiresen.com` deploy target, AW-24) push-trigger
    on `int`, emitting `ref:refs/heads/int`.
 
    **A fifth gotcha, easy to miss entirely**: any job that declares `environment:` gets a
@@ -356,10 +356,7 @@ your step-2 session, if you'd rather not click through it):
    gate at all — that's the whole point of this tier, catching permission/deploy problems before
    the `int` PR stage). Same variable-scoping-only purpose as `int`'s environment.
 9. Once `terraform apply` has run at least once for each environment (`infra/environments/prod`,
-   `infra/environments/int`, `infra/environments/dev` — **and, for `int`, only after its rename
-   to `int.athar.spiresen.com` is confirmed live**, since `environments/dev`'s first apply
-   claims the `dev.athar.spiresen.com` hostname `int` used to own; applying `dev` first would
-   collide with `int`'s still-existing record), read each one's outputs and set two more
+   `infra/environments/int`, `infra/environments/dev`), read each one's outputs and set two more
    variables **per environment** (repo → Settings → Environments → `prod`/`int`/`dev` →
    environment-level variables, not the repo-level `Variables` tab used for
    `AWS_DEPLOY_ROLE_ARN`):
@@ -375,17 +372,17 @@ your step-2 session, if you'd rather not click through it):
    there's no `plan` job for this target (every push is already a real apply, see AW-24), so
    this push is the first actual test that the `environment:dev` trust-policy pattern works.
    Confirm `infra-deploy-dev`'s `configure-aws-credentials` step succeeds, then
-   `frontend-deploy-dev`, then hit `dev.athar.spiresen.com` and the dev API's `/health` invoke
+   `frontend-deploy-dev`, then hit `dev.saga.spiresen.com` and the dev API's `/health` invoke
    URL. If you have two branches to push from, push both within a minute of each other at least
    once to confirm the `concurrency:` group queues them rather than racing.
 1. Open a PR that touches `infra/**` (even a no-op comment change) → confirm both `infra-deploy`
    and `infra-deploy-int`'s `plan` jobs run and each comment their own Terraform plan on the PR.
 2. Merge it into `int` → confirm `infra-deploy-int`'s `apply` job runs unattended on push to
    `int` (no reviewer pause, per AW-24), then `frontend-deploy-int` once `frontend/**` changes
-   too. Hit `int.athar.spiresen.com` and the int API's `/health` invoke URL to confirm real
+   too. Hit `int.saga.spiresen.com` and the int API's `/health` invoke URL to confirm real
    traffic.
 3. Promote to `main` → confirm `infra-deploy`'s `apply` job pauses for the `prod` Environment's
-   required reviewer, then `frontend-deploy`. Hit `athar.spiresen.com` and prod's `/health` the
+   required reviewer, then `frontend-deploy`. Hit `saga.spiresen.com` and prod's `/health` the
    same way.
 4. `terraform plan -input=false` locally, from each of `infra/environments/{prod,int,dev}`,
    should show zero diff once all three have been applied — confirms CI's state matches what

@@ -9,7 +9,7 @@ variable "bucket_name" {
 }
 
 variable "domain_name" {
-  description = "Optional custom domain to serve this site on (e.g. athar.spiresen.com). When null, CloudFront's own default domain/cert is used and no Route 53 record is created."
+  description = "Optional custom domain to serve this site on (e.g. saga.spiresen.com). When null, CloudFront's own default domain/cert is used and no Route 53 record is created."
   type        = string
   default     = null
 }

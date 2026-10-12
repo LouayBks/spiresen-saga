@@ -25,7 +25,7 @@ locals {
   }
 }
 
-# app_domain_name (dev.athar.spiresen.com) is two labels under spiresen.com, so the
+# app_domain_name (dev.saga.spiresen.com) is two labels under spiresen.com, so the
 # existing *.spiresen.com wildcard cert (environments/prod's module.dns) doesn't
 # cover it — request a single-SAN cert for exactly this name, validated in the same
 # existing zone (var.route53_zone_id) rather than creating a second hosted zone.

@@ -45,9 +45,9 @@ a rule needs to be *relied on*, not just *hoped for*.
 
 | Branch | Owner | Purpose | Deploys? |
 |---|---|---|---|
-| `main` | Human-merge-only | Production (`athar.spiresen.com`). | Yes — `prod`, on push, behind the `prod` environment's required reviewer |
-| `int` | Shared integration | Where issue branches land before promotion to `main`. | Yes — `int` (`int.athar.spiresen.com`), on push, unattended |
-| `dev/<actor>/<issue>-<slug>` | One actor | Per-issue work, per the existing convention already in use (e.g. `dev/louay/4-setup-ai`). `<actor>` is either a human username or literally `claude`. | Yes — the one shared `dev` environment (`dev.athar.spiresen.com`), on every push, last push wins (ADR-008 WS-4) |
+| `main` | Human-merge-only | Production (`saga.spiresen.com`). | Yes — `prod`, on push, behind the `prod` environment's required reviewer |
+| `int` | Shared integration | Where issue branches land before promotion to `main`. | Yes — `int` (`int.saga.spiresen.com`), on push, unattended |
+| `dev/<actor>/<issue>-<slug>` | One actor | Per-issue work, per the existing convention already in use (e.g. `dev/louay/4-setup-ai`). `<actor>` is either a human username or literally `claude`. | Yes — the one shared `dev` environment (`dev.saga.spiresen.com`), on every push, last push wins (ADR-008 WS-4) |
 
 This doesn't invent a new naming scheme — it formalizes the `dev/<actor>/<slug>` pattern
 already visible in git history, and adds the actor-based rules below on top of it.
@@ -120,10 +120,9 @@ routine. A human always executes the apply, either by merging to a deploy-target
 changes may apply directly" — see the open item at the top of this doc.
 
 **Three deploy targets exist as of the third-environment work (2026-09-16/17):**
-`infra-deploy.yml`/`frontend-deploy.yml` (**prod**, `athar.spiresen.com`) trigger only on push
+`infra-deploy.yml`/`frontend-deploy.yml` (**prod**, `saga.spiresen.com`) trigger only on push
 to `main`, gated behind the "prod" GitHub Environment's required reviewer.
-`infra-deploy-int.yml`/`frontend-deploy-int.yml` (**int**, `int.athar.spiresen.com` — renamed
-from `dev.athar.spiresen.com` to free that hostname for the new `dev` target below) trigger
+`infra-deploy-int.yml`/`frontend-deploy-int.yml` (**int**, `int.saga.spiresen.com`) trigger
 only on push to `int`, deliberately **not** reviewer-gated — int is the fast-iteration
 environment, and a human still approves every merge into `int` via required PR review (AW-25),
 so the deploy itself runs unattended the same way `backend-ci`/`frontend-ci` already do on
@@ -135,7 +134,7 @@ For **prod and int**: no `workflow_dispatch` path that Claude can invoke, no dep
 deploy from any `dev/*` branch — each target's auto-apply trigger is exactly the one branch
 that owns it (`main`→prod, `int`→int), nothing else.
 
-**`dev` (`dev.athar.spiresen.com`) is a deliberate, bounded exception to the "no deploy from
+**`dev` (`dev.saga.spiresen.com`) is a deliberate, bounded exception to the "no deploy from
 any `dev/*` branch" clause above, and only to that clause.** `infra-deploy-dev.yml`/
 `frontend-deploy-dev.yml` trigger on a push to *any* `dev/**` branch — no PR gate, no
 required-reviewer Environment protection, by design: `dev` exists specifically to surface real
