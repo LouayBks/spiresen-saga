@@ -11,6 +11,32 @@ What already exists in the repo by the time you start this: `infra/modules/{dns,
 alias), `infra/bootstrap` (state bucket, no DynamoDB — native S3 locking), and
 `.github/workflows/{infra-deploy,infra-deploy-int,infra-deploy-dev,frontend-deploy,frontend-deploy-int,frontend-deploy-dev}.yml`.
 
+## Account rules (shared account, since 2026-10)
+
+AWS account 054037101301 is shared with other initiatives. Spiresen is kept apart from them by
+policy, not by a separate account. The rules below bind every person and every role working for
+Spiresen, CI included:
+
+- **Names:** S3 buckets, IAM roles and policies, Lambda functions, DynamoDB tables, log groups,
+  SNS/SQS and similar named resources start with `spiresen-` (this repo uses `spiresen-saga-`).
+- **Tags:** everything that can be tagged carries `Project=spiresen-saga`. Terraform sets it
+  through `default_tags` in each `infra/environments/*/main.tf`. CloudFront distributions, ACM
+  certificates, API Gateway APIs and Cognito pools are owned by this tag, not by their name, so
+  they must be **created** with it (Terraform does this; a hand-made distribution must use
+  `create-distribution-with-tags`).
+- **Permissions boundary:** every IAM role Spiresen creates carries the managed policy
+  `boundary-spiresen`. IAM refuses to create or change a Spiresen role without it, and no
+  Spiresen principal can remove or edit it. `infra/modules/api` sets it on the Lambda execution
+  role; any future module that creates a role must set it too.
+- **Ownership of the guardrails:** `boundary-spiresen` and the `spiresen-infra-admin` permission
+  set are created and maintained by the account administrator, outside this repo. This repo only
+  has to comply with them.
+
+What the boundary blocks, in short: touching resources named or tagged for another initiative,
+tagging anything as another initiative, creating or changing a role without the boundary,
+removing or editing boundaries, and IAM users, access keys, identity providers, Identity Center
+and Organizations.
+
 ## 1. AWS account + root security
 
 Skip to step 2 if you already have an account you're using for this.
@@ -37,8 +63,15 @@ follow-up in ADR-005).
 1. AWS Console → search **IAM Identity Center** → **Enable** (works standalone, no AWS
    Organizations needed for one account). Confirm the region it asks for — that becomes your
    SSO region, note it down.
-2. **Create a permission set**: Identity Center → Permission sets → Create → Custom permission
-   set → name it `spiresen-infra-admin`. Attach an inline policy:
+2. **Permission set `spiresen-infra-admin`.** Since 2026-10 this permission set is owned by the
+   account administrator (see "Account rules" above), not created from this guide. Its inline
+   policy is scoped to `spiresen-*` names and `Project=spiresen-*` tags, plus read-only listing,
+   and `boundary-spiresen` is set as its permissions boundary. If you need it extended for a new
+   service, ask the administrator; do not recreate it from the policy below.
+
+   *Historical, kept for the record: the original single-project version of this policy
+   (2026-09-16), which granted Route 53, CloudFront, DynamoDB, Lambda, API Gateway and Cognito
+   account-wide. It must not be used in the shared account.*
    ```json
    {
      "Version": "2012-10-17",
@@ -76,8 +109,10 @@ follow-up in ADR-005).
    S3 block: several of their own list/describe calls (`ListTables`, `ListFunctions`,
    `GetRestApis`, and so on) are account-wide operations that don't accept a resource ARN at
    all, so scoping the write actions narrowly while those list calls need `"*"` just
-   reproduces an access-denied loop one level down. Since this is a single-project AWS
-   account, the practical exposure of `"*"` here is low.
+   reproduces an access-denied loop one level down. That trade-off assumed a single-project
+   account, where the exposure of `"*"` was low. It stopped holding once the account was shared:
+   the current policy keeps list/describe calls at `"*"` but scopes every write by name or
+   `Project` tag instead.
 
    IAM stays the one service scoped by resource rather than left at `iam:*`/`"*"` outright —
    a mistake there could reach outside this project (other IAM users/roles/policies on the
@@ -183,12 +218,21 @@ your step-2 session, if you'd rather not click through it):
    - Provider URL: `https://token.actions.githubusercontent.com`
    - Audience: `sts.amazonaws.com`
 2. IAM → Roles → Create role → Web identity → pick the provider from step 1, audience
-   `sts.amazonaws.com` → name it `spiresen-saga-terraform-apply`.
-3. Attach an inline policy — same scope as step 2's permission set, minus the OIDC-provider
+   `sts.amazonaws.com` → name it `spiresen-saga-terraform-apply`. Under **Permissions
+   boundary**, select `boundary-spiresen` (see "Account rules"). Without it, any workflow
+   allowed to assume this role could create a `spiresen-saga-*` role with full admin rights and
+   take over the whole account; with it, CI can only create roles that carry the same boundary.
+   If the role already exists, the account administrator sets the boundary on it
+   (`aws iam put-role-permissions-boundary`), **after** this repo's `infra/modules/api` change
+   that sets the boundary on the Lambda execution roles has been applied to every environment.
+3. Attach an inline policy — the original single-project scope, minus the OIDC-provider
    actions (CI never needs to create/list its own provider — that's a one-time human bootstrap
    step, not something Terraform running as this role ever does). It **does** need scoped IAM
    role actions now (see the `iam:*` statement below) — the `api` module has Terraform create
-   the Lambda's own execution role:
+   the Lambda's own execution role. The boundary from step 2 caps what this policy can reach,
+   so its account-wide statements can no longer touch another initiative's resources.
+   Narrowing the policy itself to `spiresen-saga-*` names and `Project=spiresen-saga` tags is
+   a tracked follow-up, to be verified against a real `dev` apply before it replaces this one:
    ```json
    {
      "Version": "2012-10-17",
@@ -213,8 +257,9 @@ your step-2 session, if you'd rather not click through it):
      ]
    }
    ```
-   Same reasoning as step 2 for what's `Resource`-scoped (`s3`, `iam`) vs. left at `"*"`
-   (everything whose own list/describe calls are account-wide and don't take a resource ARN).
+   Same reasoning as the historical policy in section 2 for what's `Resource`-scoped (`s3`,
+   `iam`) vs. left at `"*"` (everything whose own list/describe calls are account-wide and don't
+   take a resource ARN).
    **The `iam:*` statement is new** — the `api` Terraform module (`infra/modules/api`) has
    Terraform create the Lambda's own execution role, so this role now needs `iam:CreateRole`
    and friends for anything under the `spiresen-saga-*` prefix. (The original version of this

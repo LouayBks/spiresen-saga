@@ -17,10 +17,15 @@ data "aws_iam_policy_document" "lambda_assume" {
   }
 }
 
+data "aws_caller_identity" "current" {}
+
+# The account is shared with other initiatives. Every role Spiresen creates must carry
+# this boundary, or IAM refuses the create (see DOC/guides/infra_setup.md, "Account rules").
 resource "aws_iam_role" "lambda_exec" {
-  name               = "${var.function_name}-exec"
-  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
-  tags               = var.tags
+  name                 = "${var.function_name}-exec"
+  assume_role_policy   = data.aws_iam_policy_document.lambda_assume.json
+  permissions_boundary = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:policy/${var.permissions_boundary_name}"
+  tags                 = var.tags
 }
 
 resource "aws_iam_role_policy_attachment" "basic_exec" {

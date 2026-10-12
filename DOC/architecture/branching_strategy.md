@@ -45,9 +45,9 @@ a rule needs to be *relied on*, not just *hoped for*.
 
 | Branch | Owner | Purpose | Deploys? |
 |---|---|---|---|
-| `main` | Human-merge-only | Production. Sole trigger for the deploy workflow (AW-24). | Yes — on push, human-merged only |
-| `int` | Shared integration | Where issue branches land before promotion to `main`. Not itself a deploy target (no environment backs it yet — `environments/` under Terraform currently has only `prod`; a staging env is an open item in `application_architecture.md`, not assumed here). | No |
-| `dev/<actor>/<issue>-<slug>` | One actor | Per-issue work, per the existing convention already in use (e.g. `dev/louay/4-setup-ai`). `<actor>` is either a human username or literally `claude`. | No |
+| `main` | Human-merge-only | Production (`athar.spiresen.com`). | Yes — `prod`, on push, behind the `prod` environment's required reviewer |
+| `int` | Shared integration | Where issue branches land before promotion to `main`. | Yes — `int` (`int.athar.spiresen.com`), on push, unattended |
+| `dev/<actor>/<issue>-<slug>` | One actor | Per-issue work, per the existing convention already in use (e.g. `dev/louay/4-setup-ai`). `<actor>` is either a human username or literally `claude`. | Yes — the one shared `dev` environment (`dev.athar.spiresen.com`), on every push, last push wins (ADR-008 WS-4) |
 
 This doesn't invent a new naming scheme — it formalizes the `dev/<actor>/<slug>` pattern
 already visible in git history, and adds the actor-based rules below on top of it.

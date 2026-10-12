@@ -1,6 +1,6 @@
 ADR-0005: AWS identity and credential strategy for infra work
 
-Status: Accepted. Date: 2026-09-15, revised 2026-09-16. Scope: three decisions — (1)
+Status: Accepted. Date: 2026-09-15, revised 2026-09-16, amended 2026-10-12 (shared account, see end). Scope: three decisions — (1)
 credential mechanism and permission baseline for the human admin's local/interactive
 Terraform work, (2) credential mechanism for CI's automated `terraform apply` step (#11's
 `infra-deploy.yml`), (3) a separate, read-only credential for Claude, distinct from (1) —
@@ -161,3 +161,13 @@ Consequences and limitations
 - No AWS Organizations dependency: IAM Identity Center works standalone for a single-account
   setup — this decision doesn't assume or require multi-account structure, which this
   project doesn't have.
+
+## Amendment (2026-10-12): the account is shared, guardrails come from outside this repo
+
+Since 2026-10 the AWS account (054037101301) hosts other initiatives besides Spiresen. Three statements above stopped being true: that this is a single-project account, that account-wide `"*"` grants carry low exposure, and that the admin's permission set is defined by this repo. Separation stays inside one account, by policy rather than a second account (owner's decision):
+
+- **Ownership rules.** Spiresen resources are named `spiresen-*` or tagged `Project=spiresen-*` (`spiresen-saga` for this repo). Tag-owned resources (CloudFront, ACM, API Gateway, Cognito) must be created with the tag.
+- **Permissions boundary `boundary-spiresen`.** It is attached to the `spiresen-infra-admin` permission set and must be on every Spiresen IAM role, CI's `spiresen-saga-terraform-apply` and the Lambda execution roles included. It denies touching or tagging other initiatives' resources, creating or changing a role without the same boundary, removing or editing boundaries, and identity administration. This closes the path the 2026-09-16 policies left open: `iam:*` on `role/spiresen-saga-*` with no cap let CI or the admin session create an admin-equivalent role.
+- **Who owns what.** The account administrator owns the boundary and the permission set; this repo complies with them. `infra/modules/api` sets the boundary on the execution role; any new module that creates a role must do the same. `DOC/guides/infra_setup.md` ("Account rules") is the operational version.
+
+Decisions (1)–(3) are unchanged in kind: SSO for the human, OIDC for CI, a separate read-only identity for Claude (still unbuilt). Only their scope narrows. Follow-up: narrow CI's inline policy to `spiresen-saga-*` names and `Project=spiresen-saga` tags, verified against a real `dev` apply first.

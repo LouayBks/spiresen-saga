@@ -25,6 +25,12 @@ variable "memory_size" {
   default     = 256
 }
 
+variable "permissions_boundary_name" {
+  description = "Name of the account-level permissions boundary policy every Spiresen role must carry. Created and owned by the account administrator, not by this repo."
+  type        = string
+  default     = "boundary-spiresen"
+}
+
 variable "tags" {
   description = "Tags applied to every resource this module creates."
   type        = map(string)
