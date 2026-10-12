@@ -88,16 +88,15 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          claude_args: '--max-turns 20'
+          claude_args: |
+            --max-turns 20
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
           prompt: |
             Review this pull request's diff for correctness bugs and
             reuse/simplification/efficiency issues, per this repo's
             code-review conventions (see /code-review skill and
-            DOC/architecture/clean_code_rules.md).
-
-            Run the local /code-review skill yourself as a fresh-context
-            background subagent. (CLAUDE_REVIEW_TIER is currently
-            "${{ vars.CLAUDE_REVIEW_TIER || 'local (unconfirmed, default)' }}"
+            DOC/architecture/clean_code_rules.md). (CLAUDE_REVIEW_TIER is
+            currently "${{ vars.CLAUDE_REVIEW_TIER || 'local (unconfirmed, default)' }}"
             — recorded for when a real managed-service integration exists,
             not something this run branches on today.)
 
