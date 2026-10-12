@@ -13,7 +13,7 @@ variable "domain_name" {
 variable "app_domain_name" {
   description = "Hostname the frontend is served on. One label under domain_name, so it's covered by module.dns's wildcard cert without needing a new one."
   type        = string
-  default     = "athar.spiresen.com"
+  default     = "saga.spiresen.com"
 }
 
 variable "static_site_bucket_name" {
