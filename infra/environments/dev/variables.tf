@@ -11,9 +11,9 @@ variable "route53_zone_id" {
 }
 
 variable "app_domain_name" {
-  description = "Hostname the frontend is served on. Two labels under spiresen.com, so it's NOT covered by the existing *.spiresen.com wildcard cert — this environment requests its own single-SAN cert for exactly this name. Previously environments/int's hostname until int was renamed to int.athar.spiresen.com to free this one up — this environment's first apply must not run until that rename is confirmed complete (see environments/int/variables.tf's app_domain_name description), or Route 53 record creation here collides with int's still-existing record of the same name."
+  description = "Hostname the frontend is served on. Two labels under spiresen.com, so it's NOT covered by the existing *.spiresen.com wildcard cert — this environment requests its own single-SAN cert for exactly this name. Renamed from the former Athar hostname (#42); the cert and the Route 53 record are create_before_destroy, so the new name is live before the old one is removed."
   type        = string
-  default     = "dev.athar.spiresen.com"
+  default     = "dev.saga.spiresen.com"
 }
 
 variable "static_site_bucket_name" {

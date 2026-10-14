@@ -19,6 +19,6 @@ output "api_invoke_url" {
 }
 
 output "app_certificate_arn" {
-  description = "ACM cert covering dev.athar.spiresen.com."
+  description = "ACM cert covering dev.saga.spiresen.com."
   value       = aws_acm_certificate_validation.app.certificate_arn
 }
