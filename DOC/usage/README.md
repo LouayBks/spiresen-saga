@@ -19,3 +19,18 @@ Lists usage grouped by Claude Code session (one row per session, with input/outp
 When starting work on a ticket, note the date/time. When the ticket is done (or at a natural checkpoint), run `npx ccusage@latest session` (optionally scoped with `--since`) and record the relevant session(s) in [`token_usage_log.md`](token_usage_log.md).
 
 This is a manual log, not automated — the goal is a rough per-ticket cost signal over time, not exact billing reconciliation (a session can span multiple tickets, and `ccusage`'s cost figures are estimates based on published pricing, not actual invoiced amounts).
+
+`ccusage` must run online: with `--offline` its bundled price table charges models newer than the release at $0 (Opus 5.5 among them). It also groups by launch directory, so a session started outside this repo is missed or mixed with other work — use the token ledger below to attribute sessions.
+
+## Token ledger
+
+[`session_tokens.py`](session_tokens.py) reads Claude Code's transcripts and writes one CSV row per (project, session, model) with raw token counts — input, 5-minute and 1-hour cache writes, cache reads, output (and its thinking share), cold calls (full cache rebuilds), subagent calls, and the flags that change the per-token rate (web search/fetch, fast mode, US-only inference, Claude Haiku 5.5 prompts over 100K). No prices: apply a rate table to these counts when computing cost.
+
+```bash
+python3 DOC/usage/session_tokens.py > DOC/usage/token_ledger.csv   # this repo only
+python3 DOC/usage/session_tokens.py --since 2026-10-01               # a date range
+```
+
+Each API call is attributed by what it touched (paths in this repo, `LouayBks/spiresen-saga` references), so a session launched from any directory is counted, and a session that also worked elsewhere only contributes its calls here. `first`/`last` span the whole session, not only its calls here.
+
+[`token_ledger.csv`](token_ledger.csv) is a committed snapshot. Refresh it at the end of a ticket: Claude Code deletes transcripts after `cleanupPeriodDays` (30 by default), so anything not snapshotted is lost — sessions from before 13 Sep 2026 are already gone and exist only in `token_usage_log.md`. Rows in that log were taken mid-session and undercount several sessions; the ledger is the source for token counts from 13 Sep on.
