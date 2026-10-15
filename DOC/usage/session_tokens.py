@@ -150,8 +150,11 @@ def write_csv(path, header, lines):
 
 
 def read_sessions(transcripts, pattern):
-    """Return {session: [(key, project, model, usage, ts, is_subagent)]}, unreadable files skipped."""
-    sessions = {}
+    """Return ({session: [(key, project, model, usage, ts, is_subagent)]}, incomplete sessions).
+
+    A session with a file that couldn't be read is incomplete: its rows here are partial.
+    """
+    sessions, incomplete = {}, set()
     for main_file in transcripts:
         session = os.path.basename(main_file)[:-len(".jsonl")]
         subagents = glob.glob(main_file[:-len(".jsonl")] + "/subagents/*.jsonl")
@@ -161,9 +164,10 @@ def read_sessions(transcripts, pattern):
                 calls = calls_in(path, pattern)
             except OSError as exc:  # e.g. deleted by Claude Code's cleanup while we run
                 print(f"session_tokens: skipped {path}: {exc}", file=sys.stderr)
+                incomplete.add(session)
                 continue
             records += [(key, *call, path != main_file) for key, call in calls.items()]
-    return sessions
+    return sessions, incomplete
 
 
 def main():
@@ -185,7 +189,7 @@ def main():
     if not transcripts:
         sys.exit(f"session_tokens: no transcripts under {CONFIG_DIR}/projects — "
                  "set CLAUDE_CONFIG_DIR if Claude Code keeps them elsewhere")
-    sessions = read_sessions(transcripts, pattern=project_pattern())
+    sessions, incomplete = read_sessions(transcripts, pattern=project_pattern())
 
     # A resumed or forked session replays earlier calls into its own transcript. Count each
     # call once, in the session that started first (ties: the one that ended first).
@@ -248,8 +252,11 @@ def main():
             sys.exit(f"session_tokens: {args.update} has different columns — not merging")
         # A session whose transcript is still on disk is recomputed whole, even if it now
         # yields no rows here. Any other row is a session whose transcript has expired,
-        # and the ledger is now its only record.
-        lines += [[row[k] for k in header] for row in old if row["session"] not in sessions]
+        # and the ledger is now its only record. A session with an unreadable file keeps
+        # its old rows rather than being replaced by a partial count.
+        lines = [line for line in lines if line[1] not in incomplete]
+        recomputed = set(sessions) - incomplete
+        lines += [[row[k] for k in header] for row in old if row["session"] not in recomputed]
     lines.sort(key=lambda line: (line[0], line[3], line[2]))
     if args.update:
         write_csv(args.update, header, lines)
