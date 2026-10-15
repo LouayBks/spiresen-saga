@@ -11,26 +11,34 @@ de-duplicated on (message.id, requestId); a call keeps the project of its first 
 Output is CSV, one row per (project, session, model), with raw token counts only — no prices,
 so any rate table can be applied later. Usage:
 
-    python3 DOC/usage/session_tokens.py                 # this repo's rows only
+    python3 DOC/usage/session_tokens.py                 # this repo's rows only, to stdout
     python3 DOC/usage/session_tokens.py --all           # every project
     python3 DOC/usage/session_tokens.py --since 2026-10-01
+    python3 DOC/usage/session_tokens.py --update DOC/usage/token_ledger.csv
 
 Transcripts are deleted by Claude Code after `cleanupPeriodDays` (default 30) — snapshot the
-output before then. See README.md in this directory.
+output before then with --update, which keeps the rows of sessions whose transcripts are gone.
+Transcripts are read from $CLAUDE_CONFIG_DIR (default ~/.claude). See README.md here.
 """
 import argparse
 import collections
 import csv
+import datetime
 import glob
 import json
 import os
 import re
 import subprocess
 import sys
+import tempfile
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 REPO_NAME = os.path.basename(REPO)
 ROOTS = [os.path.dirname(REPO), os.path.dirname(os.path.dirname(REPO))]
+ROOT_NAMES = {os.path.basename(r) for r in ROOTS}
+REPO_SEGMENT = re.compile(rf"/{re.escape(REPO_NAME)}(?:/|$)")
+CONFIG_DIR = os.environ.get("CLAUDE_CONFIG_DIR") or os.path.expanduser("~/.claude")
+KEY = ["project", "session", "model"]
 FIELDS = [
     "calls", "input", "cache_write_5m", "cache_write_1h", "cache_read", "output", "thinking",
     "cold_calls", "subagent_calls", "web_search", "web_fetch", "fast_calls", "us_geo_calls",
@@ -60,19 +68,17 @@ def project_pattern():
 
 
 def project_of(text, pattern):
-    skip = {os.path.basename(r) for r in ROOTS}
-    repo_segment = re.compile(rf"/{re.escape(REPO_NAME)}(?:/|$)")
     hits = collections.Counter()
     for m in pattern.finditer(text):
         if m.groupdict().get("gh"):
             # A clone URL ends in .git; a reference in prose can end in a full stop.
             name = re.sub(r"\.git$", "", m.group("gh").rstrip("."))
-        elif repo_segment.search("/" + m.group("name") + m.group("rest")):
+        elif REPO_SEGMENT.search("/" + m.group("name") + m.group("rest")):
             # Also covers transcripts from before the repo moved to its current directory.
             name = REPO_NAME
         else:
             name = m.group("name").rstrip(".")
-            if not name or name in skip:
+            if not name or name in ROOT_NAMES:
                 continue
         hits[name] += 1
     return hits.most_common(1)[0][0] if hits else None
@@ -86,6 +92,8 @@ def calls_in(path, pattern):
             try:
                 entry = json.loads(line)
             except json.JSONDecodeError:
+                continue
+            if not isinstance(entry, dict):
                 continue
             kind = entry.get("type")
             if kind not in ("assistant", "user"):
@@ -103,30 +111,66 @@ def calls_in(path, pattern):
                 key = (message.get("id"), entry.get("requestId"))
                 if key == (None, None):
                     key = ("line", number)  # nothing to de-duplicate on: count it on its own
-                # The last streamed entry holds the final usage; the first fixes the project.
-                project = calls[key][0] if key in calls else current or "unattributed"
-                calls[key] = (project, model, usage, entry.get("timestamp", ""))
+                # The last streamed entry holds the final usage. The project is fixed by the
+                # first entry that has one, so a later entry can't move the call elsewhere.
+                project = calls[key][0] if key in calls else "unattributed"
+                if project == "unattributed":
+                    project = current or "unattributed"
+                calls[key] = (project, model, usage, entry.get("timestamp") or "")
     return calls.values()
+
+
+def iso_date(text):
+    try:
+        return datetime.date.fromisoformat(text).isoformat()
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"not a YYYY-MM-DD date: {text!r}") from None
+
+
+def write_csv(path, header, lines):
+    """Write to a temp file next to `path`, then rename, so a crash never leaves it truncated."""
+    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(os.path.abspath(path)), suffix=".csv")
+    try:
+        with os.fdopen(fd, "w", newline="") as f:
+            out = csv.writer(f, lineterminator="\n")
+            out.writerow(header)
+            out.writerows(lines)
+        os.replace(tmp, path)
+    except BaseException:
+        os.unlink(tmp)
+        raise
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--all", action="store_true", help="include every project, not just this repo")
-    parser.add_argument("--since", default="", help="only calls on or after this date (YYYY-MM-DD)")
+    parser.add_argument("--since", default=None, type=iso_date,
+                        help="only calls on or after this date (YYYY-MM-DD)")
+    parser.add_argument("--update", metavar="CSV",
+                        help="merge into this ledger: replace the rows of sessions still on disk, "
+                             "keep the rest, and write it back")
     args = parser.parse_args()
 
+    transcripts = glob.glob(os.path.join(CONFIG_DIR, "projects", "*", "*.jsonl"))
+    if not transcripts:
+        sys.exit(f"session_tokens: no transcripts under {CONFIG_DIR}/projects — "
+                 "set CLAUDE_CONFIG_DIR if Claude Code keeps them elsewhere")
     pattern = project_pattern()
     rows = collections.defaultdict(collections.Counter)
     span = {}
-    for main_file in glob.glob(os.path.expanduser("~/.claude/projects/*/*.jsonl")):
+    undated = 0
+    for main_file in transcripts:
         session = os.path.basename(main_file)[:-len(".jsonl")]
         subagents = glob.glob(main_file[:-len(".jsonl")] + "/subagents/*.jsonl")
         for path in [main_file] + subagents:
             for project, model, u, ts in calls_in(path, pattern):
+                if not ts:
+                    undated += 1  # can't be placed in a session span or a --since window
+                    continue
                 # first/last span the whole session, so update them before filtering.
                 first, last = span.get(session, (ts, ts))
                 span[session] = (min(first, ts), max(last, ts))
-                if ts[:10] < args.since or (not args.all and project != REPO_NAME):
+                if (args.since and ts[:10] < args.since) or (not args.all and project != REPO_NAME):
                     continue
                 cc = u.get("cache_creation") or {}
                 w5 = cc.get("ephemeral_5m_input_tokens", 0)
@@ -152,11 +196,27 @@ def main():
                 r["haiku55_over100k_calls"] += (model.startswith(HAIKU55_MODEL_PREFIX)
                                                 and inp + read + w5 + w1 > HAIKU55_LONG_PROMPT_TOKENS)
 
-    out = csv.writer(sys.stdout, lineterminator="\n")
-    out.writerow(["project", "session", "model", "first", "last"] + FIELDS)
-    for (project, session, model), r in sorted(rows.items(), key=lambda kv: (kv[0][0], span[kv[0][1]][0], kv[0][2])):
-        first, last = span[session]
-        out.writerow([project, session, model, first[:16], last[:16]] + [r[k] for k in FIELDS])
+    if undated:
+        print(f"session_tokens: skipped {undated} calls with no timestamp", file=sys.stderr)
+    header = KEY + ["first", "last"] + FIELDS
+    lines = [[project, session, model, span[session][0][:16], span[session][1][:16]]
+             + [r[k] for k in FIELDS] for (project, session, model), r in rows.items()]
+    if args.update and os.path.exists(args.update):
+        with open(args.update, newline="") as f:
+            old = list(csv.DictReader(f))
+        if old and list(old[0]) != header:
+            sys.exit(f"session_tokens: {args.update} has different columns — not merging")
+        # A session still on disk is recomputed whole; any other row is a session whose
+        # transcript has expired, and the ledger is now its only record.
+        on_disk = {line[1] for line in lines}
+        lines += [[row[k] for k in header] for row in old if row["session"] not in on_disk]
+    lines.sort(key=lambda line: (line[0], line[3], line[2]))
+    if args.update:
+        write_csv(args.update, header, lines)
+    else:
+        out = csv.writer(sys.stdout, lineterminator="\n")
+        out.writerow(header)
+        out.writerows(lines)
 
 
 if __name__ == "__main__":
