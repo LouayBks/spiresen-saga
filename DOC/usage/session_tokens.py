@@ -5,15 +5,16 @@ Reads every transcript under ~/.claude/projects/ (main sessions and their subage
 works whichever directory a session was launched from. Each API call is attributed to a
 project by what it touched: paths under the workspace that holds this repo (its parent and
 grandparent directories), or `<github-owner>/<repo>` references. A call with no such evidence
-inherits the project of the previous call in the same transcript. Streamed entries are
-de-duplicated on (message.id, requestId); a call keeps the project of its first entry.
+falls back to its launch directory, then to the project of the previous call in the same
+transcript. Streamed entries are de-duplicated on
+(message.id, requestId), across transcripts too: a resumed session's replayed calls count once.
 
 Output is CSV, one row per (project, session, model), with raw token counts only — no prices,
 so any rate table can be applied later. Usage:
 
     python3 DOC/usage/session_tokens.py                 # this repo's rows only, to stdout
     python3 DOC/usage/session_tokens.py --all           # every project
-    python3 DOC/usage/session_tokens.py --since 2026-10-01
+    python3 DOC/usage/session_tokens.py --since 2026-10-01   # UTC date
     python3 DOC/usage/session_tokens.py --update DOC/usage/token_ledger.csv
 
 Transcripts are deleted by Claude Code after `cleanupPeriodDays` (default 30) — snapshot the
@@ -85,9 +86,9 @@ def project_of(text, pattern):
 
 
 def calls_in(path, pattern):
-    """Yield (project, model, usage, timestamp) per API call in one transcript file."""
+    """Return {key: (project, model, usage, timestamp)} for the API calls in one transcript."""
     calls, current = {}, None
-    with open(path, encoding="utf-8") as f:
+    with open(path, encoding="utf-8", errors="replace") as f:
         for number, line in enumerate(f):
             try:
                 entry = json.loads(line)
@@ -99,10 +100,9 @@ def calls_in(path, pattern):
             if kind not in ("assistant", "user"):
                 continue
             message = entry.get("message") or {}
-            evidence = json.dumps(message.get("content"))
-            if kind == "assistant":
-                evidence = entry.get("cwd", "") + " " + evidence
-            project = project_of(evidence, pattern) or project_of(entry.get("cwd", ""), pattern)
+            # What the entry touched decides; the launch directory is only a fallback.
+            project = (project_of(json.dumps(message.get("content")), pattern)
+                       or project_of(entry.get("cwd", ""), pattern))
             if project:
                 current = project
             usage = message.get("usage") if kind == "assistant" else None
@@ -110,14 +110,14 @@ def calls_in(path, pattern):
             if usage and model and not model.startswith("<"):
                 key = (message.get("id"), entry.get("requestId"))
                 if key == (None, None):
-                    key = ("line", number)  # nothing to de-duplicate on: count it on its own
+                    key = ("line", path, number)  # nothing to de-duplicate on: count it on its own
                 # The last streamed entry holds the final usage. The project is fixed by the
                 # first entry that has one, so a later entry can't move the call elsewhere.
                 project = calls[key][0] if key in calls else "unattributed"
                 if project == "unattributed":
                     project = current or "unattributed"
                 calls[key] = (project, model, usage, entry.get("timestamp") or "")
-    return calls.values()
+    return calls
 
 
 def iso_date(text):
@@ -135,66 +135,106 @@ def write_csv(path, header, lines):
             out = csv.writer(f, lineterminator="\n")
             out.writerow(header)
             out.writerows(lines)
+        # mkstemp creates the file as 0600; keep the ledger's own mode (or the umask default).
+        try:
+            mode = os.stat(path).st_mode & 0o777
+        except FileNotFoundError:
+            umask = os.umask(0)
+            os.umask(umask)
+            mode = 0o666 & ~umask
+        os.chmod(tmp, mode)
         os.replace(tmp, path)
-    except BaseException:
-        os.unlink(tmp)
-        raise
+    finally:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+
+
+def read_sessions(transcripts, pattern):
+    """Return {session: [(key, project, model, usage, ts, is_subagent)]}, unreadable files skipped."""
+    sessions = {}
+    for main_file in transcripts:
+        session = os.path.basename(main_file)[:-len(".jsonl")]
+        subagents = glob.glob(main_file[:-len(".jsonl")] + "/subagents/*.jsonl")
+        records = sessions.setdefault(session, [])
+        for path in [main_file] + subagents:
+            try:
+                calls = calls_in(path, pattern)
+            except OSError as exc:  # e.g. deleted by Claude Code's cleanup while we run
+                print(f"session_tokens: skipped {path}: {exc}", file=sys.stderr)
+                continue
+            records += [(key, *call, path != main_file) for key, call in calls.items()]
+    return sessions
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--all", action="store_true", help="include every project, not just this repo")
     parser.add_argument("--since", default=None, type=iso_date,
-                        help="only calls on or after this date (YYYY-MM-DD)")
+                        help="only calls on or after this UTC date (YYYY-MM-DD); transcript "
+                             "timestamps are UTC")
     parser.add_argument("--update", metavar="CSV",
                         help="merge into this ledger: replace the rows of sessions still on disk, "
                              "keep the rest, and write it back")
     args = parser.parse_args()
+    if args.update and (args.since or args.all):
+        # The ledger holds whole sessions of this repo; a partial recomputation would
+        # replace complete rows, and the transcripts may no longer exist to redo them.
+        parser.error("--update can't be combined with --since or --all")
 
     transcripts = glob.glob(os.path.join(CONFIG_DIR, "projects", "*", "*.jsonl"))
     if not transcripts:
         sys.exit(f"session_tokens: no transcripts under {CONFIG_DIR}/projects — "
                  "set CLAUDE_CONFIG_DIR if Claude Code keeps them elsewhere")
-    pattern = project_pattern()
+    sessions = read_sessions(transcripts, pattern=project_pattern())
+
+    # A resumed or forked session replays earlier calls into its own transcript. Count each
+    # call once, in the session that started first (ties: the one that ended first).
+    window = {s: (min((r[4] for r in recs if r[4]), default="~"),
+                  max((r[4] for r in recs if r[4]), default="~")) for s, recs in sessions.items()}
+    owner = {}
+    for session, records in sessions.items():
+        for key, *_ in records:
+            if key not in owner or (window[session], session) < (window[owner[key]], owner[key]):
+                owner[key] = session
+
     rows = collections.defaultdict(collections.Counter)
     span = {}
     undated = 0
-    for main_file in transcripts:
-        session = os.path.basename(main_file)[:-len(".jsonl")]
-        subagents = glob.glob(main_file[:-len(".jsonl")] + "/subagents/*.jsonl")
-        for path in [main_file] + subagents:
-            for project, model, u, ts in calls_in(path, pattern):
-                if not ts:
-                    undated += 1  # can't be placed in a session span or a --since window
-                    continue
-                # first/last span the whole session, so update them before filtering.
-                first, last = span.get(session, (ts, ts))
-                span[session] = (min(first, ts), max(last, ts))
-                if (args.since and ts[:10] < args.since) or (not args.all and project != REPO_NAME):
-                    continue
-                cc = u.get("cache_creation") or {}
-                w5 = cc.get("ephemeral_5m_input_tokens", 0)
-                w1 = cc.get("ephemeral_1h_input_tokens", 0)
-                # Writes the breakdown doesn't account for (missing or partial) count as 5m.
-                w5 += max(u.get("cache_creation_input_tokens", 0) - w5 - w1, 0)
-                inp, read = u.get("input_tokens", 0), u.get("cache_read_input_tokens", 0)
-                tools = u.get("server_tool_use") or {}
-                r = rows[(project, session, model)]
-                r["calls"] += 1
-                r["input"] += inp
-                r["cache_write_5m"] += w5
-                r["cache_write_1h"] += w1
-                r["cache_read"] += read
-                r["output"] += u.get("output_tokens", 0)
-                r["thinking"] += (u.get("output_tokens_details") or {}).get("thinking_tokens", 0)
-                r["cold_calls"] += read == 0 and w5 + w1 > 0
-                r["subagent_calls"] += path != main_file
-                r["web_search"] += tools.get("web_search_requests", 0)
-                r["web_fetch"] += tools.get("web_fetch_requests", 0)
-                r["fast_calls"] += u.get("speed") == "fast"
-                r["us_geo_calls"] += u.get("inference_geo") == "us"
-                r["haiku55_over100k_calls"] += (model.startswith(HAIKU55_MODEL_PREFIX)
-                                                and inp + read + w5 + w1 > HAIKU55_LONG_PROMPT_TOKENS)
+    for session, records in sessions.items():
+        for key, project, model, u, ts, is_subagent in records:
+            if owner[key] != session:
+                continue
+            if not ts:
+                undated += 1  # can't be placed in a session span or a --since window
+                continue
+            # first/last span the whole session, so update them before filtering.
+            first, last = span.get(session, (ts, ts))
+            span[session] = (min(first, ts), max(last, ts))
+            if (args.since and ts[:10] < args.since) or (not args.all and project != REPO_NAME):
+                continue
+            cc = u.get("cache_creation") or {}
+            w5 = cc.get("ephemeral_5m_input_tokens", 0)
+            w1 = cc.get("ephemeral_1h_input_tokens", 0)
+            # Writes the breakdown doesn't account for (missing or partial) count as 5m.
+            w5 += max(u.get("cache_creation_input_tokens", 0) - w5 - w1, 0)
+            inp, read = u.get("input_tokens", 0), u.get("cache_read_input_tokens", 0)
+            tools = u.get("server_tool_use") or {}
+            r = rows[(project, session, model)]
+            r["calls"] += 1
+            r["input"] += inp
+            r["cache_write_5m"] += w5
+            r["cache_write_1h"] += w1
+            r["cache_read"] += read
+            r["output"] += u.get("output_tokens", 0)
+            r["thinking"] += (u.get("output_tokens_details") or {}).get("thinking_tokens", 0)
+            r["cold_calls"] += read == 0 and w5 + w1 > 0
+            r["subagent_calls"] += is_subagent
+            r["web_search"] += tools.get("web_search_requests", 0)
+            r["web_fetch"] += tools.get("web_fetch_requests", 0)
+            r["fast_calls"] += u.get("speed") == "fast"
+            r["us_geo_calls"] += u.get("inference_geo") == "us"
+            r["haiku55_over100k_calls"] += (model.startswith(HAIKU55_MODEL_PREFIX)
+                                            and inp + read + w5 + w1 > HAIKU55_LONG_PROMPT_TOKENS)
 
     if undated:
         print(f"session_tokens: skipped {undated} calls with no timestamp", file=sys.stderr)
@@ -206,10 +246,10 @@ def main():
             old = list(csv.DictReader(f))
         if old and list(old[0]) != header:
             sys.exit(f"session_tokens: {args.update} has different columns — not merging")
-        # A session still on disk is recomputed whole; any other row is a session whose
-        # transcript has expired, and the ledger is now its only record.
-        on_disk = {line[1] for line in lines}
-        lines += [[row[k] for k in header] for row in old if row["session"] not in on_disk]
+        # A session whose transcript is still on disk is recomputed whole, even if it now
+        # yields no rows here. Any other row is a session whose transcript has expired,
+        # and the ledger is now its only record.
+        lines += [[row[k] for k in header] for row in old if row["session"] not in sessions]
     lines.sort(key=lambda line: (line[0], line[3], line[2]))
     if args.update:
         write_csv(args.update, header, lines)
