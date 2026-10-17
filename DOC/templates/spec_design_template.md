@@ -46,4 +46,6 @@ Decided in `ADR-006`, scored against Gherkin/BDD, a formal SRS (IEEE 29148/Voler
 
 ## Where specs live
 
-`DOC/specs/<slug>.md`, one per Stage-A ticket (e.g. `DOC/specs/naming.md`, `DOC/specs/alternate-views.md`). Cite a spec's rows from elsewhere as `<slug>.BHV-n` / `<slug>.CON-n`.
+`DOC/specs/<slug>.md`, one per Stage-A ticket (e.g. `DOC/specs/naming.md`, `DOC/specs/alternate-views.md`). Cite a spec's rows from elsewhere as `<slug>.BHV-n` / `<slug>.CON-n`, and only in that form (ADR-006 amendment, 2026-10-17): feature manifests, design elements, tests and code cite rows this way so the trace check can find them (ADR-009).
+
+**A feature never adds behaviour of its own.** If a feature needs a behaviour or constraint that no spec states, or a different one, amend the owning spec first, in its own commit, then cite the new row from the feature's manifest (ADR-009 FP-1).
