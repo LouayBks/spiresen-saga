@@ -70,7 +70,7 @@ commit messages. Skip it entirely when the subject line already says everything 
 ## CM-6 — Footers
 
 Trailers only, one per line (`Key: value`) — e.g. the `Co-Authored-By:` attribution trailer
-already in use for Claude-assisted commits (see `using_coding_agents.md` step 5; not restated
+already in use for Claude-assisted commits (see `using_coding_agents.md` step 7; not restated
 here, per AW-14).
 
 ## CM-7 — Enforcement status
