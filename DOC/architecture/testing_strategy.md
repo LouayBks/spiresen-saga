@@ -30,6 +30,7 @@ Step 4 of point 3, following `ADR-0003` (Testing Trophy shape + agentic verifica
 | TS-12 | Hermetic tests — no shared mutable fixtures or execution-order dependency | Hook | Run test suites in randomized order (`pytest-randomly` / Vitest's equivalent) as a CI check — order-dependence surfaces as a real, catchable failure, not just a style preference |
 | TS-13 | No numeric coverage gate in CI | Hook config (explicit absence) | Coverage tooling stays diagnostic — deliberately *not* configured as a pass/fail threshold; documented here so it isn't added later without revisiting this decision |
 | TS-14 | Test names follow `test_<unit>_<scenario>_<expected>` | CLAUDE.md prose | Convention-level, not doctrine — no canonical source found for this specifically |
+| TS-20 | A test that proves a spec row names it with the row's qualified ID (`<spec-file-stem>.<ID>`, ADR-006 amendment): `@pytest.mark.bhv("alternate-views.BHV-2")` in pytest, and the ID in brackets at the start of the title in Vitest and Playwright (`"[alternate-views.BHV-5] re-renders…"`). TS-14's naming is unchanged | Agent/task def | ADR-009 FP-5/FP-6. The `bhv` marker is registered in `backend/pyproject.toml` with the first test that uses it (#57). The trace check script turns this into a mechanical check |
 
 ## D. Agentic verification policy
 
@@ -49,7 +50,7 @@ Operationalizes ADR-0003 Part 2's adopted policies with concrete, actionable rul
 |---|---|---|
 | Hook | 6 | TS-1, TS-7, TS-12, TS-13, TS-15, TS-19 (partial) |
 | Skill | 1 | TS-5 |
-| Agent/task def | 9 | TS-2, TS-3, TS-4, TS-8, TS-10, TS-16, TS-17, TS-18, TS-19 (partial) |
+| Agent/task def | 10 | TS-2, TS-3, TS-4, TS-8, TS-10, TS-16, TS-17, TS-18, TS-19 (partial), TS-20 |
 | CLAUDE.md prose | 3 | TS-9, TS-11, TS-14 |
 | N/A (tooling decision, documented not enforced) | 1 | TS-6 |
 

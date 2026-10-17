@@ -1,7 +1,7 @@
 # Agentic units — what exists, what's active, and when to use it
 
 Companion to `CLAUDE.md`, `DOC/architecture/agentic_workflow_processes.md`, and
-`DOC/architecture/branching_strategy.md`: those are the rule source of truth (AW-1..26, TS-1..19),
+`DOC/architecture/branching_strategy.md`: those are the rule source of truth (AW-1..29, TS-1..20),
 this is the practical "which unit fires when, and how do I invoke the parts that don't fire on
 their own" reference. Issue #6 built the first four units — coding, testing, review, maintenance;
 Unit 5 (branching & governance) was added in a later session, per AW-21..26.
@@ -14,6 +14,7 @@ Fires automatically, with no manual step, on every dev-loop session.
 |---|---|---|
 | Root `CLAUDE.md` | `CLAUDE.md` | AW-14 |
 | Plan template | `DOC/templates/plan_template.md` | AW-5 |
+| Feature plan templates (manifest, design, test plan) | `DOC/templates/feature_*_template.md`, filled in under `DOC/features/<issue>-<slug>/` | AW-28, ADR-009 |
 | Risk-path config | `.claude/risk-paths.json` | AW-6 |
 | High-risk detection Hook | `.claude/hooks/detect-high-risk.py` | AW-6 tier 1 |
 | Plan-review subagent | `.claude/agents/plan-reviewer.md` | AW-4 |
@@ -38,16 +39,18 @@ TS-1/7/12/15/19's Hook halves (pytest/Vitest CI gates, order-randomization, retr
 as of #9 (`backend-ci.yml`/`frontend-ci.yml`), now that real app code (`backend/`, `frontend/`)
 exists. TS-13 (no numeric coverage gate) is a permanent, deliberate absence, not a blocked item.
 
-## Unit 3 — Review (created, not enabled)
+## Unit 3 — Review (runs on every PR into `int`, advisory only)
 
 | Artifact | Path | Rule |
 |---|---|---|
 | Review workflow | `.github/workflows/claude-review.yml` | AW-11/12/13 |
+| On-demand review (comment `/review` on a PR) | `.github/workflows/claude-review-on-demand.yml` | AW-11 |
+| Comment triage tiers | `DOC/architecture/agentic_workflow_processes.md` | AW-29 |
 
 **When it fires:** automatically, on `opened`/`synchronize`/`reopened`/`ready_for_review` — not
 literally every `pull_request` event, and a draft PR is skipped until it's marked ready (a
 deliberate cost trade-off, not an oversight) — the workflow itself isn't opt-in otherwise.
-"Not enabled" means something narrower: it is **not** a required status check in branch
+It is **not** a required status check in branch
 protection on `main`, so a red or absent run never blocks a merge, and its own check-run
 conclusion is hardcoded neutral regardless of findings (AW-13) — merge authority stays fully
 human. Turning this "on" in the fuller sense (making it gate merges) is a separate, deliberate
@@ -59,6 +62,8 @@ wired yet, so "tries the managed Code Review service first" (AW-12) describes th
 not what `claude-review.yml` actually does right now. This degrades gracefully either way, so it
 didn't need to wait on confirming this account's plan tier — but the managed branch itself is
 still a TODO (issue #19), not a silently-assumed-done feature.
+
+**Acting on its comments:** sort each one into tier A, B or C (AW-29). Only A blocks the merge, and after the first round of fixes only A items on lines the last fix changed are considered.
 
 ## Unit 4 — Maintenance (created, not enabled)
 

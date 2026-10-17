@@ -1,6 +1,6 @@
 # Branching strategy and actor permissions
 
-Companion to `agentic_workflow_processes.md` (AW-1..20) and ADR-004 Parts 2/3/8 — this defines
+Companion to `agentic_workflow_processes.md` (AW-1..20, AW-28..29) and ADR-004 Parts 2/3/8 — this defines
 *who* (human vs. Claude) may do *what* to *which branch*, and how that's enforced. Rule IDs
 continue that document's `AW-` sequence (AW-21..27) rather than starting a new namespace.
 
@@ -47,7 +47,8 @@ a rule needs to be *relied on*, not just *hoped for*.
 |---|---|---|---|
 | `main` | Human-merge-only | Production (`saga.spiresen.com`). | Yes — `prod`, on push, behind the `prod` environment's required reviewer |
 | `int` | Shared integration | Where issue branches land before promotion to `main`. | Yes — `int` (`int.saga.spiresen.com`), on push, unattended |
-| `dev/<actor>/<issue>-<slug>` | One actor | Per-issue work, per the existing convention already in use (e.g. `dev/louay/4-setup-ai`). `<actor>` is either a human username or literally `claude`. | Yes — the one shared `dev` environment (`dev.saga.spiresen.com`), on every push, last push wins (ADR-008 WS-4) |
+| `dev/<actor>/<issue>-<slug>` | One actor | Per-issue work, per the existing convention already in use (e.g. `dev/louay/4-setup-ai`). `<actor>` is either a human username or literally `claude` (which one: AW-21 amendment below). | Yes — the one shared `dev` environment (`dev.saga.spiresen.com`), on every push, last push wins (ADR-008 WS-4) |
+| `dev/<actor>/<issue>-<slug>-<part>` | Same actor as its feature branch | A sub-branch of a feature (ADR-008 WS-2), cut from the feature branch and merged back with `--no-ff`. `<part>` names the layer or slice, e.g. `dev/louay/57-foundation-kernel`. | Only if pushed, which is normally not needed: it merges into its feature branch locally |
 
 This doesn't invent a new naming scheme — it formalizes the `dev/<actor>/<slug>` pattern
 already visible in git history, and adds the actor-based rules below on top of it.
@@ -233,6 +234,15 @@ flattens the `--no-ff` sub-branch boundaries that ADR-008 WS-2 relies on for rev
 Rung 5 is the real control and is a human-only setting: disable **Allow squash merging** and
 **Allow rebase merging** under the repository's *Settings → General → Pull Requests*. Until then
 this rule sits on rung 1.
+
+## Amendment (2026-10-17): the branch actor is whoever supervises the work
+
+**AW-21's `<actor>` meant "who typed the commits".** The owner's rule, stated 2026-10-15, is that it records **who supervised the work** instead:
+
+- **`dev/<human>/…`** when a human is driving or watching the session, even when Claude writes the commits and pushes them. In such a session, Claude may push to that human's `dev/<human>/…` branch when the human asks it to. It still never pushes to `int` or `main` (AW-25, and the deny list).
+- **`dev/claude/…`** only for a branch of fixes Claude adds on top of an existing branch, or for a task delegated to Claude in full.
+
+AW-21's other limits are unchanged: a Claude-created branch starts from `int` or an existing `dev/<human>/…` branch, never from `main`, and Claude never creates or renames `int` or `main`. AW-22..27 are unchanged. The taxonomy above also gains the sub-branch shape `dev/<actor>/<issue>-<slug>-<part>` (ADR-008 amendment, 2026-10-17).
 
 ## Identity setup — human action items, not automatable by Claude
 
