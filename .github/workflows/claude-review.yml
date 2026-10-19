@@ -90,7 +90,7 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_args: |
             --max-turns 20
-            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments:*)"
           prompt: |
             Review this pull request's diff for correctness bugs and
             reuse/simplification/efficiency issues, per this repo's
@@ -100,9 +100,18 @@ jobs:
             — recorded for when a real managed-service integration exists,
             not something this run branches on today.)
 
-            Post findings as inline PR review comments. Do not approve or
-            request changes on the PR itself — this review is advisory only
-            (AW-13); a human retains merge authority.
+            Post at most 10 findings, as inline PR review comments, one
+            comment per issue. Before posting anything:
+            - Verify each finding against the code it cites; drop any you
+              can't confirm.
+            - Merge duplicates: an issue that shows up in several places is
+              one comment, which names the other places.
+            - Skip any issue that already has a review comment on this PR
+              (list them with `gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments --paginate`).
+            If more than 10 survive, keep the 10 most severe. Do not post a
+            summary comment. Do not approve or request changes on the PR
+            itself — this review is advisory only (AW-13); a human retains
+            merge authority.
 
       # AW-13: the check-run conclusion is hardcoded to `neutral` regardless
       # of findings, of whether the review step above succeeded, failed, or

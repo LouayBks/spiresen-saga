@@ -4,15 +4,23 @@
 # ("Review workflow ('gh claude')") — only the automatic half of that node
 # existed until now.
 #
-# Trigger: commenting "/review" anywhere in a PR's conversation
-# (issue_comment) or on a review-line comment (pull_request_review_comment)
-# runs the same local /code-review pass as the automatic workflow, on
-# demand. anthropics/claude-code-action does the trigger-phrase matching
-# itself (trigger_phrase below) — no custom `if: contains(...)` gating
-# needed for that part. It does NOT check out the repo itself (an earlier
-# version of this comment claimed it did; that was wrong — the action's
-# first `git diff` failed with "Not a git repository" until an explicit
-# checkout step was added below).
+# Trigger: a PR comment (issue_comment) or review-line comment
+# (pull_request_review_comment) that starts with "/review" runs the same
+# local /code-review pass as the automatic workflow, on demand. The job's
+# `if:` does that matching. claude-code-action's own trigger_phrase can't:
+# with a fixed `prompt:` the action runs in automation mode and ignores
+# trigger_phrase, so before this gate every owner comment on a PR started
+# a full review (86 runs on 2026-10-15 from thread replies on #70). The
+# match is startsWith, not contains, so a comment that only mentions
+# "/review" doesn't start a run.
+#
+# issue_comment always runs this file as it is on the default branch
+# (main); pull_request_review_comment runs it from the PR's merge ref. A
+# change here covers top-level PR comments only once it reaches main.
+#
+# The action does NOT check out the repo itself (the action's first
+# `git diff` failed with "Not a git repository" until an explicit checkout
+# step was added below).
 #
 # Two safety gates issue_comment needs that pull_request (used by
 # claude-review.yml) gets for free from GitHub itself:
@@ -51,13 +59,22 @@ jobs:
   review:
     # issue_comment fires for both issues and PRs; only react on PRs.
     # pull_request_review_comment only ever fires on PRs, so it always
-    # passes. The actor-association check is the secrets-exposure gate
-    # (see file header, point 1) — anyone able to comment on a public repo
-    # can otherwise trigger this and spend the repo owner's Claude usage.
+    # passes. The startsWith check is the trigger phrase (see file header).
+    # The actor-association check is the secrets-exposure gate (see file
+    # header, point 1) — anyone able to comment on a public repo can
+    # otherwise trigger this and spend the repo owner's Claude usage.
     if: >
       (github.event_name == 'pull_request_review_comment' ||
        github.event.issue.pull_request != null) &&
+      startsWith(github.event.comment.body, '/review') &&
       contains(fromJSON('["OWNER", "COLLABORATOR", "MEMBER"]'), github.event.comment.author_association)
+    # One on-demand review per PR at a time; a second "/review" cancels the
+    # run in flight instead of stacking another full review on top. Set on
+    # the job, not the workflow, so a comment the `if:` skips never joins
+    # the group and can't cancel a real run.
+    concurrency:
+      group: claude-review-on-demand-${{ github.event.pull_request.number || github.event.issue.number }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -106,16 +123,24 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          trigger_phrase: "/review"
           claude_args: |
             --max-turns 20
-            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh api repos/${{ github.repository }}/pulls/${{ steps.pr.outputs.number }}/comments:*)"
           prompt: |
             Review this pull request's diff for correctness bugs and
             reuse/simplification/efficiency issues, per this repo's
             code-review conventions (see /code-review skill and
             DOC/architecture/clean_code_rules.md).
 
-            Post findings as inline PR review comments. Do not approve or
-            request changes on the PR itself — this review is advisory only
-            (AW-13); a human retains merge authority.
+            Post at most 10 findings, as inline PR review comments, one
+            comment per issue. Before posting anything:
+            - Verify each finding against the code it cites; drop any you
+              can't confirm.
+            - Merge duplicates: an issue that shows up in several places is
+              one comment, which names the other places.
+            - Skip any issue that already has a review comment on this PR
+              (list them with `gh api repos/${{ github.repository }}/pulls/${{ steps.pr.outputs.number }}/comments --paginate`).
+            If more than 10 survive, keep the 10 most severe. Do not post a
+            summary comment. Do not approve or request changes on the PR
+            itself — this review is advisory only (AW-13); a human retains
+            merge authority.
