@@ -21,6 +21,12 @@ One row = one issue = one PR into `int` (WS-1). Sub-branches run infra → backe
 
 **Merge order:** 0, 1, 2, 3, then 4 / 5 / 6 in parallel, then 7.
 
+## Feature folders and coverage
+
+Each feature is planned in `DOC/features/<issue>-<slug>/` before its first sub-branch (ADR-009, AW-28). Its manifest lists the spec rows it delivers.
+
+**Coverage matrix: not built yet.** Every `BHV-*` and `CON-*` row in `DOC/specs/` will be assigned here to exactly one feature, or marked deferred, cited as `<slug>.<ID>`. Until it exists, a manifest is checked against the specs by hand, and an overlap between two features can go unnoticed.
+
 ## Why this order
 
 - **1 before everything:** every slice imports the kernel; the table is created by its first user (WS-3).

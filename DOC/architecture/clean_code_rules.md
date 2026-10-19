@@ -78,6 +78,7 @@ The genuine mechanically-uncoverable residual — kept intentionally small per A
 |---|---|---|---|
 | CC-23 | Every public function/class/module has a docstring | Lint config | ruff `D` (pydocstyle) rules enforce *presence* |
 | CC-24 | Docstrings and comments must stay true to the code — explain *why*, not restate *what* | CLAUDE.md prose | Presence is lintable (CC-23); truthfulness isn't |
+| CC-34 | Entry points name the design element they implement, on one docstring or comment line: `Implements: 57-B3`. Entry points are route handlers, repository functions, top-level Angular components and Terraform resources; nothing below them carries a reference | Agent/task def | ADR-009 FP-6. Entry points only, so the IDs stay few and stable; the trace check script verifies every cited ID exists |
 | CC-25 | Names reveal intent; no abbreviations or disinformation | CLAUDE.md prose | The one item no linter can judge |
 | CC-26 | Single Responsibility per function/class/component — one thing, done well | CLAUDE.md prose | Judgment call; kept short deliberately |
 
@@ -102,10 +103,10 @@ Consequences of the stack already locked in (`DOC/architecture/application_archi
 | Hook | 6 | CC-1, CC-2, CC-5, CC-6, CC-13, CC-15 |
 | Lint config | 18 | CC-3, CC-4, CC-7, CC-8, CC-10, CC-11, CC-12, CC-14, CC-16, CC-17, CC-19, CC-20, CC-21, CC-23, CC-29 (partial), CC-31 (partial), CC-32, CC-33 (if available) |
 | Skill | 3 | CC-22, CC-29 (residual), CC-31 (residual) |
-| Agent/task def | 5 | CC-9, CC-18, CC-27, CC-28, CC-33 (fallback) |
+| Agent/task def | 6 | CC-9, CC-18, CC-27, CC-28, CC-33 (fallback), CC-34 |
 | CLAUDE.md prose | 4 | CC-24, CC-25, CC-26, CC-30 |
 
-The prose tier stays at 4 short rules out of 33 — consistent with ADR-0002's decision to keep that layer small enough to survive Anthropic's own "over-specified CLAUDE.md gets ignored" caution, with everything else pushed to a deterministic or task-structural surface instead.
+The prose tier stays at 4 short rules out of 34 — consistent with ADR-0002's decision to keep that layer small enough to survive Anthropic's own "over-specified CLAUDE.md gets ignored" caution, with everything else pushed to a deterministic or task-structural surface instead.
 
 ## Note on traceability to research
 

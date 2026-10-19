@@ -1,5 +1,7 @@
 # Plan template (AW-5)
 
+This is the plan for **one sub-branch**. The feature as a whole is planned first, in its feature folder (`DOC/features/<issue>-<slug>/`, ADR-009, AW-28). When that folder has a design, the sub-branch plan **cites the design elements it implements** (`Implements: 57-B2, 57-B3`) and the manifest rows they cover, instead of re-deriving the API, the data access or the infra outputs. A change to the design is made in `design.md` first, then cited.
+
 Fixed-floor fields apply to every plan that reaches Plan Mode (i.e., didn't qualify for the AW-1 bypass). Conditional fields apply only when the change is multi-file, touches unfamiliar code, or has an uncertain approach — skip them, don't leave them blank, otherwise.
 
 ## Fixed floor (always present)

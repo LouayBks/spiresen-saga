@@ -5,10 +5,16 @@ Step 4 of point 4, following `ADR-0004` (topology principles, and role/gate assi
 ## A. Dev workflow
  
 ### Single-issue flow
+
+A feature is planned once, before its first sub-branch (AW-28, ADR-009). The flow below then runs once per sub-branch (ADR-008 WS-2).
  
 ```mermaid
 flowchart TD
-    A[Issue picked up] --> B{"Bypass-eligible?\n(AW-1: one file, no logic/control-flow\nchange, one-sentence describable)"}
+    A0[Feature issue picked up] --> FP{"Feature folder exists?\n(AW-28: manifest, design, test plan)"}
+    FP -->|no| FW["Plan the feature: manifest (owner reviews),\ndesign per layer, test plan;\nplan-reviewer on sensitive design elements"]
+    FW --> A
+    FP -->|yes| A
+    A[Sub-branch picked up] --> B{"Bypass-eligible?\n(AW-1: one file, no logic/control-flow\nchange, one-sentence describable)"}
     B -->|yes| D[Implement directly]
     B -->|no, or uncertain| P[Plan mode: explore + propose]
     P --> Q{"Touches high-risk logic?\n(AW-6 detection: mechanical check,\nthen cheap classifier if ambiguous)"}
@@ -75,7 +81,8 @@ Fixed floor applies to every plan; conditional rows apply only when the change i
 | ID | Rule | Surface | Notes |
 |---|---|---|---|
 | AW-4 | A plan flagged high-risk (AW-6) gets a fresh-context review of the plan itself before implementation starts, using the same subagent mechanism as `/code-review` but pointed at the plan, not a diff | Agent/task def | ADR-0004 Part 5. Scoped identically to TS-17 — not universal. |
-| AW-5 | The plan template's fixed-floor fields are non-negotiable; conditional fields are skipped, not left blank, when the change doesn't meet AW-1's escalation triggers | Agent/task def | Keeps trivial-but-not-bypass-eligible tasks from inheriting full ceremony |
+| AW-5 | The plan template's fixed-floor fields are non-negotiable; conditional fields are skipped, not left blank, when the change doesn't meet AW-1's escalation triggers. When the feature has a design (AW-28), the sub-branch plan cites the design elements it implements rather than re-deriving them | Agent/task def | Keeps trivial-but-not-bypass-eligible tasks from inheriting full ceremony. Citation added 2026-10-17 (ADR-009) |
+| AW-28 | Before a feature's first sub-branch plan, its feature folder `DOC/features/<issue>-<slug>/` exists: a manifest of the spec rows it delivers (reviewed by the owner), a design per layer it touches, and a test plan (ADR-009 FP-2..8). When a design element touches a sensitive area, `plan-reviewer` reviews the design before any sub-branch plan (AW-4, extended to designs) | Agent/task def | ADR-0004 amendment 2026-10-17; ADR-009. Light depth for one-layer features (FP-8) |
  
 ## C. Deployment workflow
  
@@ -134,6 +141,7 @@ flowchart TD
 | AW-11 | Every non-draft PR into `int` (dev → int) routes through the GitHub Action automatically — not opt-in per PR; the `int` → `main` promotion PR is deliberately not re-reviewed (2026-09-19). A draft PR is re-evaluated once it's marked ready for review (the workflow's `ready_for_review` trigger), but one merged while still draft would never get reviewed — a deliberate cost trade-off (drafts iterate heavily), not an oversight. | GitHub Action config | ADR-0004 Part 4 |
 | AW-12 | Review surface (managed service vs. local `/code-review`) is selected automatically by plan-tier availability, checked once and cached, not re-verified per PR | GitHub Action config | Verify plan-tier availability once when wiring this up (ADR-0004's named unresolved item) |
 | AW-13 | Check-run conclusion is always neutral regardless of findings — merge authority never leaves the human reviewer | GitHub Action config | Matches Part 3's same default-deny-on-unapproved-merge posture |
+| AW-29 | Review comments are triaged into tiers: **A** (wrong results or data loss in normal use, a regression from the last fix, docs contradicting code, security or infra) must be fixed before merge; **B** (an edge case that can occur here, a loud and harmless crash) is fixed if small and within the PR's files, otherwise ticketed; **C** (setups that don't exist here, unmeasured speed, style, claims checked and found not to occur) gets a one-line reply. Checkable claims are checked first. After the first fix round only A items on lines the last fix changed count. Every thread is answered and resolved; a PR is merge-ready with no open thread, no A item and green checks | Agent/task def | ADR-0004 amendment 2026-10-17, from PR #70's five review rounds |
  
 ## E. Code documentation for discovery
  
@@ -151,7 +159,7 @@ flowchart TD
  
 | Surface | Count |
 |---|---|
-| Agent/task def | 8 (AW-1, 2, 3, 4, 5, 6 partial, 9 partial, 10) |
+| Agent/task def | 10 (AW-1, 2, 3, 4, 5, 6 partial, 9 partial, 10, 28, 29) |
 | Hook | 2 (AW-6 partial, 7 partial) |
 | Routine | 2 (AW-7 partial, 8) |
 | GitHub Action config | 4 (AW-9 partial, 11, 12, 13) |

@@ -76,15 +76,21 @@ A full narrative of this process is kept in [`strategy_creation_timeline.md`](DO
 - [ADR-002 — Clean-code strategy](ADR/ADR-002-clean_code.md)
 - [ADR-003 — Testing strategy](ADR/ADR-003-testing-strategy.md)
 - [ADR-004 — Agentic workflow and multi-agent architecture](ADR/ADR-004-agentic-workflow.md)
+- [ADR-005 — AWS identity and credential strategy](ADR/ADR-005-aws-identity-strategy.md)
+- [ADR-006 — Spec design template](ADR/ADR-006-spec-design-template.md)
+- [ADR-007 — Physical data layout](ADR/ADR-007-physical-data-layout.md)
+- [ADR-008 — Work slicing and sequencing](ADR/ADR-008-work-slicing-and-sequencing.md)
+- [ADR-009 — Feature planning and traceability](ADR/ADR-009-feature-planning-and-traceability.md)
 
 **Final rules** — the *what*, concrete and enforceable:
-- [Clean-code rules (33 rules, CC-1 to CC-33)](DOC/architecture/clean_code_rules.md)
-- [Testing strategy (19 rules, TS-1 to TS-19)](DOC/architecture/testing_strategy.md)
-- [Agentic workflow processes (20 rules, AW-1 to AW-20)](DOC/architecture/agentic_workflow_processes.md)
-- [Branching strategy (6 rules, AW-21 to AW-26)](DOC/architecture/branching_strategy.md) — branch taxonomy and actor permissions (human vs. Claude); codebase-protection policy, not a FinOps decision, so it sits outside the research→ADR pipeline above
+- [Clean-code rules (34 rules, CC-1 to CC-34)](DOC/architecture/clean_code_rules.md)
+- [Testing strategy (20 rules, TS-1 to TS-20)](DOC/architecture/testing_strategy.md)
+- [Agentic workflow processes (22 rules, AW-1 to AW-20, AW-28 and AW-29)](DOC/architecture/agentic_workflow_processes.md)
+- [Branching strategy (7 rules, AW-21 to AW-27)](DOC/architecture/branching_strategy.md) — branch taxonomy and actor permissions (human vs. Claude); codebase-protection policy, not a FinOps decision, so it sits outside the research→ADR pipeline above
 
 **Guides** — the *how-to*, for picking up a ticket:
-- [Using the coding agents](DOC/guides/using_coding_agents.md) — step-by-step dev walkthrough from branch to PR
+- [Working on a ticket with Claude Code](DOC/guides/using_coding_agents.md) — Claude Code basics, how work is organised, and the walkthrough from ticket to merged PR
+- [Feature plans](DOC/features/README.md) — the per-feature manifest, design and test plan
 
 **Setup reference** — the *how*, concrete tool and credential configuration:
 - [Claude Code setup](DOC/setup/claude_code_setup.md) — plugins/MCP servers, GitHub App and Action scope, AWS credential and IAM setup, `.claude/settings.json` and hooks
